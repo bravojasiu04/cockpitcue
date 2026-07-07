@@ -12,6 +12,8 @@ export default function FlowsPage() {
   const [openAircraft, setOpenAircraft] = useState<Record<string, boolean>>({});
   const [openFlow, setOpenFlow] = useState<Record<string, boolean>>({});
   const [playingFlow, setPlayingFlow] = useState<SavedFlow | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const ac = getAircrafts();
@@ -46,7 +48,16 @@ export default function FlowsPage() {
     const { imageDataUrl: _img, ...flowData } = flow;
     const payload = { type: "flow", version: 1, flow: flowData, aircraftName: ac?.name ?? "" };
     const url = `${window.location.origin}/import?d=${btoa(JSON.stringify(payload))}`;
-    navigator.clipboard.writeText(url).then(() => alert("Share link copied to clipboard!"));
+    setShareUrl(url);
+    setCopied(false);
+  }
+
+  function copyShareUrl() {
+    if (!shareUrl) return;
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
   }
   const totalFlows = flows.length;
   const flowsLocked = !isPremium && totalFlows >= 1;
@@ -60,7 +71,87 @@ export default function FlowsPage() {
         onClose={() => setPlayingFlow(null)}
       />
     )}
-    <div className="max-w-4xl mx-auto px-6 md:px-10 py-16">
+    {/* Share drawer */}
+    {shareUrl && (
+      <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setShareUrl(null)}>
+        <div
+          onClick={e => e.stopPropagation()}
+          className="h-full w-full max-w-sm flex flex-col"
+          style={{
+            background: "var(--bg-card)",
+            borderLeft: "1px solid var(--border)",
+            boxShadow: "-8px 0 32px rgba(0,0,0,0.5)",
+            animation: "slideInRight 0.25s ease-out",
+          }}>
+
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-5"
+            style={{ borderBottom: "1px solid var(--border)" }}>
+            <div>
+              <p className="text-xs font-mono mb-0.5" style={{ color: "#00B4D8" }}>SHARE FLOW</p>
+              <h2 className="text-base font-bold">Share via link</h2>
+            </div>
+            <button onClick={() => setShareUrl(null)}
+              className="flex items-center justify-center w-8 h-8 rounded-lg transition-all hover:opacity-80"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)" }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+              </svg>
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 px-6 py-6 flex flex-col gap-6">
+            {/* Link box */}
+            <div>
+              <p className="text-xs mb-2 font-medium" style={{ color: "var(--text-secondary)" }}>Share link</p>
+              <div className="flex items-center gap-2 p-3 rounded-xl"
+                style={{ background: "rgba(0,0,0,0.3)", border: "1px solid var(--border)" }}>
+                <p className="flex-1 text-xs font-mono truncate" style={{ color: "#00B4D8" }}>
+                  {shareUrl}
+                </p>
+                <button
+                  onClick={copyShareUrl}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:opacity-90"
+                  style={{
+                    background: copied ? "rgba(46,204,113,0.2)" : "rgba(0,180,216,0.15)",
+                    color: copied ? "#2ECC71" : "#00B4D8",
+                    border: `1px solid ${copied ? "rgba(46,204,113,0.3)" : "rgba(0,180,216,0.3)"}`,
+                  }}>
+                  {copied ? (
+                    <><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M2 7l4 4 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg> Copied!</>
+                  ) : (
+                    <><svg width="12" height="12" viewBox="0 0 14 14" fill="none"><rect x="4" y="4" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.5"/><path d="M2 10V2h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg> Copy</>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Instructions */}
+            <div className="rounded-xl p-4 flex flex-col gap-3"
+              style={{ background: "rgba(0,180,216,0.04)", border: "1px solid rgba(0,180,216,0.15)" }}>
+              <p className="text-xs font-bold" style={{ color: "#00B4D8" }}>How it works</p>
+              {[
+                { n: "1", text: "Copy the link above and send it to your co-pilot or student." },
+                { n: "2", text: "They open the link — no account needed to preview." },
+                { n: "3", text: "They click \"Import flow\" and it appears in their CockpitCue library." },
+                { n: "4", text: "They'll need to upload their own cockpit photo — images aren't included in the link." },
+              ].map(step => (
+                <div key={step.n} className="flex items-start gap-3">
+                  <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5"
+                    style={{ background: "rgba(0,180,216,0.15)", color: "#00B4D8", border: "1px solid rgba(0,180,216,0.25)" }}>
+                    {step.n}
+                  </div>
+                  <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{step.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    <div className="max-w-6xl mx-auto px-6 md:px-10 py-16">
       <div className="mb-10">
         <p className="text-sm font-mono mb-2" style={{ color: "#00B4D8" }}>MY FLOWS</p>
         <h1 className="text-3xl font-bold mb-2">Your saved flows</h1>
