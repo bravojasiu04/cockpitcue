@@ -59,6 +59,17 @@ export default function SubscriptionPage() {
           colorInputPlaceholder: "#484F58",
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
+        elements: {
+          theme: "night",
+          variables: {
+            colorPrimary: "#00B4D8",
+            colorBackground: "#0D1117",
+            colorText: "#E6EDF3",
+            colorTextSecondary: "#8B949E",
+            colorDanger: "#E63946",
+            fontFamily: "inherit",
+          },
+        },
       },
     });
   }
