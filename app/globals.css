@@ -44,6 +44,9 @@ body {
 [data-localization-key="userProfile.navbar.title"],
 [data-localization-key="userProfile.navbar.description"],
 [data-localization-key="billing.checkout.title"],
+[data-localization-key="billing.checkout.totalDuePerPeriod"],
+[class*="cl-lineItemsTitle"],
+[class*="cl-lineItemsDescription"],
 .cl-drawerHeader h2,
 .cl-drawerTitle {
   color: #E6EDF3 !important;
