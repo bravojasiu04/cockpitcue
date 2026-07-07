@@ -42,7 +42,10 @@ body {
 [class*="cl-userProfile"] h2,
 [class*="cl-userProfile"] p,
 [data-localization-key="userProfile.navbar.title"],
-[data-localization-key="userProfile.navbar.description"] {
+[data-localization-key="userProfile.navbar.description"],
+[data-localization-key="billing.checkout.title"],
+.cl-drawerHeader h2,
+.cl-drawerTitle {
   color: #E6EDF3 !important;
 }
 
