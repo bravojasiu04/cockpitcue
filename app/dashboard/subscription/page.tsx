@@ -52,6 +52,11 @@ export default function SubscriptionPage() {
         variables: {
           colorBackground: "#161B22",
           colorPrimary: "#00B4D8",
+          colorText: "#E6EDF3",
+          colorTextSecondary: "#8B949E",
+          colorInputText: "#E6EDF3",
+          colorInputBackground: "#0D1117",
+          colorInputPlaceholder: "#484F58",
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
       },
