@@ -40,7 +40,9 @@ body {
 [class*="cl-page__header"] *,
 [class*="cl-userProfile"] h1,
 [class*="cl-userProfile"] h2,
-[class*="cl-userProfile"] p {
+[class*="cl-userProfile"] p,
+[data-localization-key="userProfile.navbar.title"],
+[data-localization-key="userProfile.navbar.description"] {
   color: #E6EDF3 !important;
 }
 
