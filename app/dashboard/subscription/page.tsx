@@ -46,6 +46,8 @@ export default function SubscriptionPage() {
   function openCheckout() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (clerk as any).__internal_openCheckout({
+      planId: process.env.NEXT_PUBLIC_CLERK_PREMIUM_PLAN_ID,
+      planPeriod: "month",
       appearance: {
         variables: {
           colorBackground: "#161B22",
