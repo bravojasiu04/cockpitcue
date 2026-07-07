@@ -368,10 +368,21 @@ export default function Home() {
           </Show>
         </div>
 
-        <div className="w-full max-w-2xl">
-          <CockpitDemo />
+        <div className="w-full max-w-3xl">
+          <div className="rounded-2xl overflow-hidden"
+            style={{ border: "1px solid var(--border)", boxShadow: "0 8px 48px rgba(0,0,0,0.5)" }}>
+            <video
+              src="/demo.mp4"
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full block"
+              style={{ display: "block" }}
+            />
+          </div>
           <p className="text-center text-xs mt-3" style={{ color: "var(--text-secondary)" }}>
-            Interactive demo · Editor mode transitions to Quiz mode automatically
+            CockpitCue in action — build flows, practice, ace your checks
           </p>
         </div>
       </section>
