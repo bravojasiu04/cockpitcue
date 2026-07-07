@@ -285,14 +285,16 @@ export default function Home() {
 
   const plans = [
     {
-      name: "Free", price: "€0", period: "forever",
+      name: "Free", price: "$0", period: "forever",
       features: ["1 aircraft / cockpit", "Up to 5 flows", "5 quiz sessions / week", "Share via link"],
       cta: "Get Started Free", highlight: false,
+      badge: null, originalPrice: null,
     },
     {
-      name: "Pilot", price: "€10", period: "/ month",
+      name: "Pilot", price: "$4", period: "/ month",
       features: ["Unlimited cockpits", "Unlimited flows", "Unlimited quizzes", "Progress tracking", "Share via link"],
-      cta: "Start Free Trial", highlight: true,
+      cta: "Upgrade Now", highlight: true,
+      badge: "BETA", originalPrice: "$10",
     },
   ];
 
@@ -467,16 +469,28 @@ export default function Home() {
                   border: `1px solid ${p.highlight ? "#00B4D8" : "var(--border)"}`,
                   boxShadow: p.highlight ? "0 0 40px rgba(0,180,216,0.08)" : "none",
                 }}>
-                {p.highlight && (
-                  <div className="absolute top-4 right-4 text-xs px-2 py-1 rounded-full font-medium"
-                    style={{ background: "rgba(0,180,216,0.15)", color: "#00B4D8" }}>Most Popular</div>
+                {p.badge && (
+                  <div className="absolute top-4 right-4 text-xs px-2 py-1 rounded-full font-bold"
+                    style={{ background: "rgba(247,127,0,0.2)", color: "#F77F00", border: "1px solid rgba(247,127,0,0.4)" }}>
+                    {p.badge}
+                  </div>
                 )}
                 <div>
                   <p className="text-sm font-medium mb-2" style={{ color: "var(--text-secondary)" }}>{p.name}</p>
+                  {p.originalPrice && (
+                    <p className="text-xs line-through mb-0.5" style={{ color: "var(--text-secondary)" }}>
+                      {p.originalPrice}/month
+                    </p>
+                  )}
                   <div className="flex items-end gap-1">
-                    <span className="text-4xl font-bold">{p.price}</span>
+                    <span className="text-4xl font-bold" style={{ color: p.highlight ? "#F77F00" : undefined }}>{p.price}</span>
                     <span className="text-sm mb-1.5" style={{ color: "var(--text-secondary)" }}>{p.period}</span>
                   </div>
+                  {p.highlight && (
+                    <p className="text-xs mt-1" style={{ color: "#8B949E" }}>
+                      billed <span style={{ color: "#E6EDF3", fontWeight: 600 }}>$48/year</span> · save 20% annually
+                    </p>
+                  )}
                 </div>
                 <ul className="flex flex-col gap-3">
                   {p.features.map(f => (
