@@ -30,7 +30,17 @@ body {
 .cl-navbarButton span,
 .cl-profileSectionTitle,
 .cl-profileSectionTitleText,
-[class*="cl-navbar"] {
+[class*="cl-navbar"],
+.cl-headerTitle,
+.cl-headerSubtitle,
+.cl-page .cl-headerTitle,
+.cl-page .cl-headerSubtitle,
+[class*="cl-headerTitle"],
+[class*="cl-headerSubtitle"],
+[class*="cl-page__header"] *,
+[class*="cl-userProfile"] h1,
+[class*="cl-userProfile"] h2,
+[class*="cl-userProfile"] p {
   color: #E6EDF3 !important;
 }
 
