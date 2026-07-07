@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
 
@@ -222,6 +222,47 @@ function CockpitDemo() {
 }
 
 
+/* ─── demo video ─── */
+function DemoVideo() {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [ended, setEnded] = useState(false);
+
+  function handleClick() {
+    if (!ref.current) return;
+    ref.current.currentTime = 0;
+    ref.current.play();
+    setEnded(false);
+  }
+
+  return (
+    <div className="relative rounded-2xl overflow-hidden"
+      style={{ border: "1px solid var(--border)", boxShadow: "0 8px 48px rgba(0,0,0,0.5)", cursor: ended ? "pointer" : "default" }}
+      onClick={ended ? handleClick : undefined}>
+      <video
+        ref={ref}
+        src="/demo.mp4"
+        autoPlay
+        muted
+        playsInline
+        className="w-full block"
+        onEnded={() => setEnded(true)}
+      />
+      {ended && (
+        <div className="absolute inset-0 flex items-center justify-center"
+          style={{ background: "rgba(13,17,23,0.55)" }}>
+          <div className="flex items-center gap-3 px-5 py-3 rounded-2xl text-sm font-semibold"
+            style={{ background: "rgba(0,180,216,0.15)", border: "1px solid rgba(0,180,216,0.35)", color: "#00B4D8" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M5 3l14 9-14 9V3z"/>
+            </svg>
+            Play again
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── page ─── */
 export default function Home() {
   const features = [
@@ -369,18 +410,7 @@ export default function Home() {
         </div>
 
         <div className="w-full max-w-3xl">
-          <div className="rounded-2xl overflow-hidden"
-            style={{ border: "1px solid var(--border)", boxShadow: "0 8px 48px rgba(0,0,0,0.5)" }}>
-            <video
-              src="/demo.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="w-full block"
-              style={{ display: "block" }}
-            />
-          </div>
+          <DemoVideo />
           <p className="text-center text-xs mt-3" style={{ color: "var(--text-secondary)" }}>
             CockpitCue in action — build flows, practice, ace your checks
           </p>
