@@ -40,6 +40,14 @@ export default function FlowsPage() {
 
   const { isPremium } = usePlan();
   const aircraftsWithFlows = aircrafts.filter(ac => flows.some(f => f.aircraftId === ac.id));
+
+  function shareFlow(flow: SavedFlow) {
+    const ac = aircrafts.find(a => a.id === flow.aircraftId);
+    const { imageDataUrl: _img, ...flowData } = flow;
+    const payload = { type: "flow", version: 1, flow: flowData, aircraftName: ac?.name ?? "" };
+    const url = `${window.location.origin}/import?d=${btoa(JSON.stringify(payload))}`;
+    navigator.clipboard.writeText(url).then(() => alert("Share link copied to clipboard!"));
+  }
   const totalFlows = flows.length;
   const flowsLocked = !isPremium && totalFlows >= 1;
 
@@ -159,6 +167,12 @@ export default function FlowsPage() {
                               className="text-xs px-3 py-1.5 rounded-lg transition-all hover:opacity-80"
                               style={{ background: "rgba(0,180,216,0.08)", color: "#00B4D8", border: "1px solid #00B4D820" }}>
                               {openFlow[flow.id] ? "▲ Steps" : "▼ Steps"}
+                            </button>
+                            <button
+                              onClick={() => shareFlow(flow)}
+                              className="text-xs px-3 py-1.5 rounded-lg transition-all hover:opacity-80"
+                              style={{ background: "rgba(46,204,113,0.08)", color: "#2ECC71", border: "1px solid rgba(46,204,113,0.2)" }}>
+                              Share
                             </button>
                             <Link href={`/dashboard/flows/edit/${flow.id}`}
                               className="text-xs px-3 py-1.5 rounded-lg transition-all hover:opacity-80"

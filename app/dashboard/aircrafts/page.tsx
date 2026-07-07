@@ -96,6 +96,13 @@ export default function AircraftsPage() {
     setAircrafts(getAircrafts());
   }
 
+  function handleShare(ac: Aircraft) {
+    const { imageDataUrl: _img, ...acData } = ac;
+    const payload = { type: "aircraft", version: 1, aircraft: acData };
+    const url = `${window.location.origin}/import?d=${btoa(JSON.stringify(payload))}`;
+    navigator.clipboard.writeText(url).then(() => alert("Share link copied to clipboard!"));
+  }
+
   async function handleUpdateImage(ac: Aircraft, file: File | undefined) {
     if (!file || !file.type.startsWith("image/")) return;
     const reader = new FileReader();
@@ -237,7 +244,7 @@ export default function AircraftsPage() {
       ) : (
         <div className="flex flex-col gap-3">
           {aircrafts.map(ac => (
-            <AircraftCard key={ac.id} ac={ac} onDelete={handleDelete} onUpdateImage={handleUpdateImage} />
+            <AircraftCard key={ac.id} ac={ac} onDelete={handleDelete} onUpdateImage={handleUpdateImage} onShare={handleShare} />
           ))}
         </div>
       )}
@@ -246,11 +253,12 @@ export default function AircraftsPage() {
 }
 
 function AircraftCard({
-  ac, onDelete, onUpdateImage,
+  ac, onDelete, onUpdateImage, onShare,
 }: {
   ac: Aircraft;
   onDelete: (id: string) => void;
   onUpdateImage: (ac: Aircraft, file: File | undefined) => void;
+  onShare: (ac: Aircraft) => void;
 }) {
   const imgRef = useRef<HTMLInputElement>(null);
 
@@ -310,6 +318,11 @@ function AircraftCard({
         </div>
       </div>
 
+      <button onClick={() => onShare(ac)}
+        className="text-xs px-3 py-1.5 rounded-lg transition-all hover:opacity-80 shrink-0"
+        style={{ background: "rgba(46,204,113,0.08)", color: "#2ECC71", border: "1px solid rgba(46,204,113,0.2)" }}>
+        Share
+      </button>
       <button onClick={() => onDelete(ac.id)}
         className="text-xs px-3 py-1.5 rounded-lg transition-all hover:opacity-80 shrink-0"
         style={{ background: "rgba(230,57,70,0.1)", color: "#E63946", border: "1px solid rgba(230,57,70,0.2)" }}>
