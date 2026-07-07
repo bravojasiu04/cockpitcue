@@ -25,7 +25,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <UserButton afterSignOutUrl="/" appearance={{
             variables: {
               colorBackground: "#161B22",
-              colorText: "#E6EDF3",
               colorTextSecondary: "#8B949E",
               colorPrimary: "#00B4D8",
               colorNeutral: "#E6EDF3",
