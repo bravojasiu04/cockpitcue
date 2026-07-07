@@ -330,11 +330,9 @@ export default function Home() {
               style={{ background: "#00B4D8", color: "#0D1117" }}>
               Dashboard
             </a>
-            <UserButton afterSignOutUrl="/" appearance={{
+            <UserButton appearance={{
               variables: {
                 colorBackground: "#161B22",
-                colorText: "#E6EDF3",
-                colorTextSecondary: "#8B949E",
                 colorPrimary: "#00B4D8",
                 colorNeutral: "#E6EDF3",
                 borderRadius: "0.75rem",

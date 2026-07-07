@@ -581,7 +581,7 @@ function QuizSummary({ results, examMode, onRestart }: { results: FlowResult[]; 
   const flowMap = new Map<string, { name: string; emergency: boolean; runs: StepResult[][] }>();
   if (examMode) {
     for (const r of results) {
-      const entry = flowMap.get(r.flow.id) ?? { name: r.flow.name, emergency: r.flow.emergency, runs: [] };
+      const entry = flowMap.get(r.flow.id) ?? { name: r.flow.name, emergency: r.flow.emergency ?? false, runs: [] as StepResult[][] };
       entry.runs.push(r.steps);
       flowMap.set(r.flow.id, entry);
     }

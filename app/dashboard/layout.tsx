@@ -22,10 +22,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
             {user?.emailAddresses[0]?.emailAddress}
           </span>
-          <UserButton afterSignOutUrl="/" appearance={{
+          <UserButton appearance={{
             variables: {
               colorBackground: "#161B22",
-              colorTextSecondary: "#8B949E",
               colorPrimary: "#00B4D8",
               colorNeutral: "#E6EDF3",
               borderRadius: "0.75rem",

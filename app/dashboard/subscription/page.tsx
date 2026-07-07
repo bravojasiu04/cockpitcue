@@ -22,8 +22,8 @@ export default function SubscriptionPage() {
 
   useEffect(() => {
     if (!isLoaded || !user) return;
-    // @ts-expect-error – billing is experimental
-    clerk.billing
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (clerk as any).billing
       ?.getSubscription({})
       .then((sub: Subscription) => setSubscription(sub))
       .catch(() => setSubscription(null))
