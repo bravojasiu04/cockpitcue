@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getAircrafts, getFlows, type Aircraft, type SavedFlow } from "@/app/lib/storage";
 import { saveQuizEntry } from "@/app/lib/quizHistory";
+import { usePlan } from "@/app/lib/usePlan";
 
 type QuizConfig = {
   mode: "practice" | "exam";
@@ -683,6 +684,7 @@ function QuizSummary({ results, examMode, onRestart }: { results: FlowResult[]; 
    ════════════════════════════════════════════════ */
 export default function QuizzesPage() {
   const searchParams = useSearchParams();
+  const { isPremium } = usePlan();
   const [aircrafts, setAircrafts] = useState<Aircraft[]>([]);
   const [flows, setFlows] = useState<SavedFlow[]>([]);
   const [config, setConfig] = useState<QuizConfig>({
@@ -836,18 +838,33 @@ export default function QuizzesPage() {
             ]).map(opt => {
               const active = config.mode === opt.value;
               const color = opt.value === "exam" ? "#E63946" : "#00B4D8";
+              const examLocked = opt.value === "exam" && !isPremium;
               return (
                 <button key={opt.value}
-                  onClick={() => setConfig(c => ({ ...c, mode: opt.value }))}
+                  onClick={() => {
+                    if (examLocked) { window.location.href = "/dashboard/subscription"; return; }
+                    setConfig(c => ({ ...c, mode: opt.value }));
+                  }}
                   className="flex-1 flex items-start gap-3 px-5 py-4 rounded-xl text-left transition-all"
                   style={{
-                    background: active ? `${color}12` : "rgba(255,255,255,0.02)",
-                    border: `2px solid ${active ? color : "var(--border)"}`,
+                    background: examLocked ? "rgba(139,148,158,0.04)" : active ? `${color}12` : "rgba(255,255,255,0.02)",
+                    border: `2px solid ${examLocked ? "var(--border)" : active ? color : "var(--border)"}`,
+                    opacity: examLocked ? 0.7 : 1,
                   }}>
-                  <span className="text-2xl shrink-0 mt-0.5">{opt.icon}</span>
+                  <span className="text-2xl shrink-0 mt-0.5">{examLocked ? "🔒" : opt.icon}</span>
                   <div>
-                    <p className="text-sm font-bold mb-0.5" style={{ color: active ? color : "var(--text-primary)" }}>{opt.label}</p>
-                    <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{opt.desc}</p>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-sm font-bold" style={{ color: examLocked ? "#8B949E" : active ? color : "var(--text-primary)" }}>{opt.label}</p>
+                      {examLocked && (
+                        <span className="text-xs px-1.5 py-0.5 rounded font-bold"
+                          style={{ background: "rgba(247,127,0,0.15)", color: "#F77F00", border: "1px solid rgba(247,127,0,0.3)" }}>
+                          PREMIUM
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                      {examLocked ? "Upgrade to unlock Exam mode" : opt.desc}
+                    </p>
                   </div>
                 </button>
               );

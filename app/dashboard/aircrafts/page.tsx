@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getAircrafts, saveAircraft, deleteAircraft, type Aircraft } from "@/app/lib/storage";
+import { usePlan } from "@/app/lib/usePlan";
+import Link from "next/link";
 
 type ToggleOption<T extends string> = { value: T; label: string; icon: string };
 
@@ -57,6 +59,9 @@ export default function AircraftsPage() {
   const [newImage, setNewImage] = useState<string | undefined>();
   const [error, setError] = useState("");
   const addImgRef = useRef<HTMLInputElement>(null);
+
+  const { isPremium } = usePlan();
+  const aircraftLocked = !isPremium && aircrafts.length >= 1;
 
   useEffect(() => { setAircrafts(getAircrafts()); }, []);
 
@@ -114,7 +119,25 @@ export default function AircraftsPage() {
 
       {/* Add form */}
       <div className="p-6 rounded-2xl mb-8"
-        style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+        style={{
+          background: "var(--bg-card)",
+          border: aircraftLocked ? "1px solid rgba(247,127,0,0.3)" : "1px solid var(--border)",
+        }}>
+        {aircraftLocked ? (
+          <div className="text-center py-4">
+            <div className="text-3xl mb-3">🔒</div>
+            <p className="text-sm font-semibold mb-1">Aircraft limit reached</p>
+            <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
+              Free plan allows 1 aircraft. Upgrade to Premium for unlimited aircraft.
+            </p>
+            <Link href="/dashboard/subscription"
+              className="inline-block px-5 py-2 rounded-lg text-sm font-medium transition-all hover:opacity-90"
+              style={{ background: "#F77F00", color: "#0D1117" }}>
+              Upgrade to Premium
+            </Link>
+          </div>
+        ) : (
+        <>
         <p className="text-sm font-semibold mb-4">Add new aircraft</p>
 
         <div className="flex flex-col md:flex-row gap-3 mb-4">
@@ -201,6 +224,8 @@ export default function AircraftsPage() {
           style={{ background: "#00B4D8", color: "#0D1117" }}>
           + Add aircraft
         </button>
+        </>
+        )}
       </div>
 
       {/* Aircraft list */}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getFlows, getAircrafts, deleteFlow, type SavedFlow, type Aircraft } from "@/app/lib/storage";
+import { usePlan } from "@/app/lib/usePlan";
 import Link from "next/link";
 import FlowPlayer from "./FlowPlayer";
 
@@ -37,8 +38,10 @@ export default function FlowsPage() {
     setOpenFlow(prev => ({ ...prev, [id]: !prev[id] }));
   }
 
+  const { isPremium } = usePlan();
   const aircraftsWithFlows = aircrafts.filter(ac => flows.some(f => f.aircraftId === ac.id));
   const totalFlows = flows.length;
+  const flowsLocked = !isPremium && totalFlows >= 1;
 
   return (
     <>
@@ -227,17 +230,30 @@ export default function FlowsPage() {
 
       {/* CTA */}
       <div className="p-10 rounded-2xl text-center"
-        style={{ background: "rgba(0,180,216,0.05)", border: "1px dashed #00B4D840" }}>
-        <div className="text-4xl mb-4">🧭</div>
-        <h2 className="text-xl font-semibold mb-2">Build a new flow</h2>
+        style={{
+          background: flowsLocked ? "rgba(247,127,0,0.04)" : "rgba(0,180,216,0.05)",
+          border: flowsLocked ? "1px dashed rgba(247,127,0,0.35)" : "1px dashed #00B4D840",
+        }}>
+        <div className="text-4xl mb-4">{flowsLocked ? "🔒" : "🧭"}</div>
+        <h2 className="text-xl font-semibold mb-2">{flowsLocked ? "Flow limit reached" : "Build a new flow"}</h2>
         <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
-          Upload your cockpit layout and place memory-item steps directly on it.
+          {flowsLocked
+            ? "Free plan allows 1 flow. Upgrade to Premium for unlimited flows."
+            : "Upload your cockpit layout and place memory-item steps directly on it."}
         </p>
-        <Link href="/dashboard/flows/new"
-          className="inline-block px-6 py-3 rounded-xl font-medium text-sm transition-all hover:opacity-90"
-          style={{ background: "#00B4D8", color: "#0D1117" }}>
-          Open Flows Creator
-        </Link>
+        {flowsLocked ? (
+          <Link href="/dashboard/subscription"
+            className="inline-block px-6 py-3 rounded-xl font-medium text-sm transition-all hover:opacity-90"
+            style={{ background: "#F77F00", color: "#0D1117" }}>
+            Upgrade to Premium
+          </Link>
+        ) : (
+          <Link href="/dashboard/flows/new"
+            className="inline-block px-6 py-3 rounded-xl font-medium text-sm transition-all hover:opacity-90"
+            style={{ background: "#00B4D8", color: "#0D1117" }}>
+            Open Flows Creator
+          </Link>
+        )}
       </div>
     </div>
     </>

@@ -286,13 +286,13 @@ export default function Home() {
   const plans = [
     {
       name: "Free", price: "$0", period: "forever",
-      features: ["1 aircraft / cockpit", "Up to 5 flows", "5 quiz sessions / week", "Share via link"],
+      features: ["1 aircraft / cockpit", "1 flow", "Practice quizzes only", "Share via link"],
       cta: "Get Started Free", highlight: false,
       badge: null, originalPrice: null,
     },
     {
       name: "Pilot", price: "$4", period: "/ month",
-      features: ["Unlimited cockpits", "Unlimited flows", "Unlimited quizzes", "Progress tracking", "Share via link"],
+      features: ["Unlimited aircraft", "Unlimited flows", "Practice + Exam mode", "Progress tracking", "Share via link"],
       cta: "Upgrade Now", highlight: true,
       badge: "BETA", originalPrice: "$10",
     },
