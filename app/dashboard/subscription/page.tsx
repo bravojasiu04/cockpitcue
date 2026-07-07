@@ -1,6 +1,6 @@
 "use client";
 
-import { PricingTable, useClerk, useUser } from "@clerk/nextjs";
+import { useClerk, useUser } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 
 type SubscriptionItem = {
@@ -117,10 +117,9 @@ export default function SubscriptionPage() {
 
       {/* Upgrade UI (Free users) */}
       {!isPremium && (
-        <div>
-          {/* Beta discount banner */}
-          <div className="rounded-2xl p-5 mb-5 flex items-center justify-between gap-4"
-            style={{ background: "rgba(247,127,0,0.07)", border: "1px solid rgba(247,127,0,0.3)" }}>
+        <div className="rounded-2xl p-6" style={{ background: "var(--bg-card)", border: "1px solid rgba(0,180,216,0.2)" }}>
+          {/* Beta badge + pricing */}
+          <div className="flex items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-3">
               <span className="px-2 py-0.5 rounded text-xs font-bold shrink-0"
                 style={{ background: "rgba(247,127,0,0.2)", color: "#F77F00", border: "1px solid rgba(247,127,0,0.4)" }}>
@@ -139,17 +138,30 @@ export default function SubscriptionPage() {
             </div>
           </div>
 
-          <PricingTable appearance={{
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            variables: {
-              colorBackground: "#161B22",
-              colorPrimary: "#00B4D8",
-              colorText: "#E6EDF3",
-              colorTextSecondary: "#8B949E",
-              colorNeutral: "#E6EDF3",
-              borderRadius: "0.75rem",
-            } as any,
-          }} />
+          {/* Feature list */}
+          <ul className="space-y-2.5 mb-6">
+            {[
+              "Unlimited flows",
+              "All aircraft types",
+              "Advanced quiz modes",
+              "Annotations & drawing tools",
+              "Priority support",
+            ].map(f => (
+              <li key={f} className="flex items-center gap-2.5 text-sm">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
+                  <path d="M2 7l4 4 6-6" stroke="#00B4D8" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                {f}
+              </li>
+            ))}
+          </ul>
+
+          <button
+            onClick={() => (clerk as any).__internal_openCheckout()}
+            className="w-full py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90"
+            style={{ background: "#00B4D8", color: "#0D1117" }}>
+            Upgrade to Premium — €5/month
+          </button>
         </div>
       )}
     </div>
