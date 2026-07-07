@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getFlows, getAircrafts, deleteFlow, type SavedFlow, type Aircraft } from "@/app/lib/storage";
+import { getFlows, getAircrafts, saveFlow, deleteFlow, type SavedFlow, type Aircraft } from "@/app/lib/storage";
 import { usePlan } from "@/app/lib/usePlan";
 import Link from "next/link";
 import FlowPlayer from "./FlowPlayer";
@@ -14,6 +14,7 @@ export default function FlowsPage() {
   const [playingFlow, setPlayingFlow] = useState<SavedFlow | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [importStatus, setImportStatus] = useState<"idle" | "success" | "error">("idle");
 
   useEffect(() => {
     const ac = getAircrafts();
@@ -50,6 +51,26 @@ export default function FlowsPage() {
     const url = `${window.location.origin}/import?d=${btoa(JSON.stringify(payload))}`;
     setShareUrl(url);
     setCopied(false);
+  }
+
+  function handlePasteImport(e: React.ClipboardEvent<HTMLInputElement>) {
+    const text = e.clipboardData.getData("text").trim();
+    try {
+      const url = new URL(text);
+      const d = url.searchParams.get("d");
+      if (!d) { setImportStatus("error"); return; }
+      const payload = JSON.parse(atob(d));
+      if (payload.type !== "flow") { setImportStatus("error"); return; }
+      saveFlow({ ...payload.flow, imageDataUrl: "" });
+      const updated = getFlows().sort((a: { createdAt: string }, b: { createdAt: string }) => b.createdAt.localeCompare(a.createdAt));
+      setFlows(updated);
+      setAircrafts(getAircrafts());
+      setImportStatus("success");
+      setTimeout(() => setImportStatus("idle"), 3000);
+    } catch {
+      setImportStatus("error");
+      setTimeout(() => setImportStatus("idle"), 3000);
+    }
   }
 
   function copyShareUrl() {
@@ -160,6 +181,37 @@ export default function FlowsPage() {
             ? "Flows you've built, ready to practice or edit."
             : `${totalFlows} flow${totalFlows !== 1 ? "s" : ""} across ${aircraftsWithFlows.length} aircraft`}
         </p>
+      </div>
+
+      {/* Paste import box */}
+      <div className="mb-6 p-4 rounded-2xl flex items-center gap-3"
+        style={{
+          background: importStatus === "success" ? "rgba(46,204,113,0.06)" : importStatus === "error" ? "rgba(230,57,70,0.06)" : "var(--bg-card)",
+          border: `1px solid ${importStatus === "success" ? "rgba(46,204,113,0.3)" : importStatus === "error" ? "rgba(230,57,70,0.3)" : "var(--border)"}`,
+          transition: "all 0.2s",
+        }}>
+        <span className="text-lg shrink-0">
+          {importStatus === "success" ? "✅" : importStatus === "error" ? "❌" : "🔗"}
+        </span>
+        <div className="flex-1">
+          {importStatus === "success" ? (
+            <p className="text-sm font-medium" style={{ color: "#2ECC71" }}>Flow imported! Scroll down to see it.</p>
+          ) : importStatus === "error" ? (
+            <p className="text-sm font-medium" style={{ color: "#E63946" }}>Invalid link — make sure you pasted a CockpitCue share link.</p>
+          ) : (
+            <>
+              <p className="text-xs font-medium mb-1">Got a shared flow?</p>
+              <input
+                type="text"
+                readOnly
+                onPaste={handlePasteImport}
+                placeholder="Paste share link here to import…"
+                className="w-full text-sm outline-none bg-transparent"
+                style={{ color: "var(--text-secondary)" }}
+              />
+            </>
+          )}
+        </div>
       </div>
 
       {aircraftsWithFlows.length === 0 ? (

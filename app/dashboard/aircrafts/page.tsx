@@ -162,11 +162,11 @@ export default function AircraftsPage() {
             {error && <p className="text-xs mt-1" style={{ color: "#E63946" }}>{error}</p>}
           </div>
           <div className="w-full md:w-40">
-            <label className="block text-xs mb-1" style={{ color: "var(--text-secondary)" }}>Registration</label>
+            <label className="block text-xs mb-1" style={{ color: "var(--text-secondary)" }}>ICAO code</label>
             <input
               value={registration}
               onChange={e => setRegistration(e.target.value)}
-              placeholder="e.g. SP-ABC"
+              placeholder="e.g. P208"
               className="w-full px-3 py-2 rounded-lg text-sm"
               style={{ background: "#0D1117", border: "1px solid #30363D", color: "var(--text-primary)", outline: "none" }}
             />
