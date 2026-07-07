@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { saveFlow, saveAircraft, getFlows, getAircrafts, type SavedFlow, type Aircraft } from "@/app/lib/storage";
 import Link from "next/link";
@@ -17,7 +17,7 @@ function decode(raw: string): SharePayload | null {
   }
 }
 
-export default function ImportPage() {
+function ImportContent() {
   const searchParams = useSearchParams();
   const [payload, setPayload] = useState<SharePayload | null>(null);
   const [invalid, setInvalid] = useState(false);
@@ -190,5 +190,18 @@ export default function ImportPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ImportPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "var(--bg-primary)" }}>
+        <div className="w-6 h-6 rounded-full border-2 animate-spin"
+          style={{ borderColor: "#00B4D8 transparent #00B4D8 #00B4D8" }} />
+      </div>
+    }>
+      <ImportContent />
+    </Suspense>
   );
 }
