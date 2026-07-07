@@ -11,6 +11,14 @@ export function usePlan() {
 
   useEffect(() => {
     if (!isLoaded || !user) { setIsLoading(false); return; }
+
+    // Admin override via Clerk publicMetadata
+    if ((user.publicMetadata as Record<string, unknown>)?.plan === "premium") {
+      setIsPremium(true);
+      setIsLoading(false);
+      return;
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (clerk as any).billing
       ?.getSubscription({})
