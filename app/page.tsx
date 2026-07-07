@@ -222,6 +222,101 @@ function CockpitDemo() {
 }
 
 
+/* ─── contact form ─── */
+function ContactForm() {
+  const [name, setName]       = useState("");
+  const [email, setEmail]     = useState("");
+  const [message, setMessage] = useState("");
+  const [status, setStatus]   = useState<"idle" | "loading" | "success" | "error">("idle");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setStatus("loading");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, message }),
+      });
+      setStatus(res.ok ? "success" : "error");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  if (status === "success") {
+    return (
+      <div className="text-center py-12 px-6 rounded-2xl"
+        style={{ background: "rgba(46,204,113,0.06)", border: "1px solid rgba(46,204,113,0.2)" }}>
+        <div className="text-4xl mb-3">✅</div>
+        <p className="font-semibold mb-1">Message sent!</p>
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>We&apos;ll get back to you within 24 hours.</p>
+      </div>
+    );
+  }
+
+  const inputStyle: React.CSSProperties = {
+    background: "rgba(0,180,216,0.04)",
+    border: "1px solid var(--border)",
+    color: "var(--text-primary)",
+    outline: "none",
+    transition: "border-color 0.15s",
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div className="flex gap-4">
+        <div className="flex-1 flex flex-col gap-1.5">
+          <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Your name</label>
+          <input
+            required value={name} onChange={e => setName(e.target.value)}
+            placeholder="John Smith"
+            className="px-4 py-3 rounded-xl text-sm"
+            style={inputStyle}
+            onFocus={e => (e.target.style.borderColor = "#00B4D8")}
+            onBlur={e => (e.target.style.borderColor = "var(--border)")}
+          />
+        </div>
+        <div className="flex-1 flex flex-col gap-1.5">
+          <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Email address</label>
+          <input
+            required type="email" value={email} onChange={e => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="px-4 py-3 rounded-xl text-sm"
+            style={inputStyle}
+            onFocus={e => (e.target.style.borderColor = "#00B4D8")}
+            onBlur={e => (e.target.style.borderColor = "var(--border)")}
+          />
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium" style={{ color: "var(--text-secondary)" }}>Message</label>
+        <textarea
+          required value={message} onChange={e => setMessage(e.target.value)}
+          placeholder="Hi, I have a question about…"
+          rows={5}
+          className="px-4 py-3 rounded-xl text-sm resize-none"
+          style={inputStyle}
+          onFocus={e => (e.target.style.borderColor = "#00B4D8")}
+          onBlur={e => (e.target.style.borderColor = "var(--border)")}
+        />
+      </div>
+
+      {status === "error" && (
+        <p className="text-sm" style={{ color: "#E63946" }}>Something went wrong — please try again.</p>
+      )}
+
+      <button
+        type="submit" disabled={status === "loading"}
+        className="py-3.5 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-60"
+        style={{ background: "#00B4D8", color: "#0D1117" }}>
+        {status === "loading" ? "Sending…" : "Send message →"}
+      </button>
+    </form>
+  );
+}
+
 /* ─── demo video ─── */
 function DemoVideo() {
   const ref = useRef<HTMLVideoElement>(null);
@@ -311,6 +406,7 @@ export default function Home() {
           <a href="#how-it-works" className="hover:text-white transition-colors">How it works</a>
           <a href="#features"     className="hover:text-white transition-colors">Features</a>
           <a href="#pricing"      className="hover:text-white transition-colors">Pricing</a>
+          <a href="#contact"      className="hover:text-white transition-colors">Contact</a>
         </div>
         <div className="flex items-center gap-3">
           <Show when="signed-out">
@@ -582,6 +678,18 @@ export default function Home() {
           </div>
         </section>
       </Show>
+
+      {/* CONTACT */}
+      <section id="contact" className="py-24 px-6" style={{ borderTop: "1px solid var(--border)" }}>
+        <div className="max-w-xl mx-auto">
+          <p className="text-xs font-mono mb-2 text-center" style={{ color: "#00B4D8" }}>CONTACT US</p>
+          <h2 className="text-3xl font-bold text-center mb-2">Got a question?</h2>
+          <p className="text-sm text-center mb-10" style={{ color: "var(--text-secondary)" }}>
+            We read every message and reply within 24 hours.
+          </p>
+          <ContactForm />
+        </div>
+      </section>
 
       {/* FOOTER */}
       <footer className="py-8 px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs"
