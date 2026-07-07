@@ -14,11 +14,17 @@ type Subscription = {
   status: string;
 } | null;
 
+const MONTHLY_PRICE = 5;
+const ANNUAL_PRICE = 4;
+const ANNUAL_TOTAL = 48;
+const ORIGINAL_PRICE = 10;
+
 export default function SubscriptionPage() {
   const { user, isLoaded } = useUser();
   const clerk = useClerk();
   const [subscription, setSubscription] = useState<Subscription>(null);
   const [loadingSub, setLoadingSub] = useState(true);
+  const [annual, setAnnual] = useState(false);
 
   useEffect(() => {
     if (!isLoaded || !user) return;
@@ -36,6 +42,19 @@ export default function SubscriptionPage() {
   const isPremium = !!premiumItem;
   const nextPaymentDate = subscription?.nextPayment?.date;
   const nextPaymentAmount = subscription?.nextPayment?.amount;
+
+  function openCheckout() {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (clerk as any).__internal_openCheckout({
+      appearance: {
+        variables: {
+          colorBackground: "#161B22",
+          colorPrimary: "#00B4D8",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+      },
+    });
+  }
 
   if (!isLoaded || loadingSub) {
     return (
@@ -102,7 +121,7 @@ export default function SubscriptionPage() {
             </div>
             {nextPaymentAmount && (
               <p className="text-lg font-bold" style={{ color: "#00B4D8" }}>
-                {(nextPaymentAmount.amount / 100).toFixed(0)} {nextPaymentAmount.currency.toUpperCase()}
+                ${(nextPaymentAmount.amount / 100).toFixed(0)}
               </p>
             )}
           </div>
@@ -118,23 +137,59 @@ export default function SubscriptionPage() {
       {/* Upgrade UI (Free users) */}
       {!isPremium && (
         <div className="rounded-2xl p-6" style={{ background: "var(--bg-card)", border: "1px solid rgba(0,180,216,0.2)" }}>
-          {/* Beta badge + pricing */}
-          <div className="flex items-center justify-between gap-4 mb-6">
-            <div className="flex items-center gap-3">
-              <span className="px-2 py-0.5 rounded text-xs font-bold shrink-0"
-                style={{ background: "rgba(247,127,0,0.2)", color: "#F77F00", border: "1px solid rgba(247,127,0,0.4)" }}>
-                BETA
+
+          {/* Beta badge */}
+          <div className="flex items-center gap-2 mb-5">
+            <span className="px-2 py-0.5 rounded text-xs font-bold"
+              style={{ background: "rgba(247,127,0,0.2)", color: "#F77F00", border: "1px solid rgba(247,127,0,0.4)" }}>
+              BETA
+            </span>
+            <p className="text-sm font-semibold">Limited-time beta price — lock in before launch</p>
+          </div>
+
+          {/* Monthly / Annual toggle */}
+          <div className="flex items-center justify-between mb-6 p-1 rounded-xl"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--border)" }}>
+            <button
+              onClick={() => setAnnual(false)}
+              className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
+              style={{
+                background: !annual ? "var(--bg-card)" : "transparent",
+                color: !annual ? "#E6EDF3" : "#8B949E",
+                boxShadow: !annual ? "0 1px 4px rgba(0,0,0,0.3)" : "none",
+              }}>
+              Monthly
+            </button>
+            <button
+              onClick={() => setAnnual(true)}
+              className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2"
+              style={{
+                background: annual ? "var(--bg-card)" : "transparent",
+                color: annual ? "#E6EDF3" : "#8B949E",
+                boxShadow: annual ? "0 1px 4px rgba(0,0,0,0.3)" : "none",
+              }}>
+              Annual
+              <span className="text-xs px-1.5 py-0.5 rounded font-bold"
+                style={{ background: "rgba(46,204,113,0.15)", color: "#2ECC71" }}>
+                Save 20%
               </span>
-              <div>
-                <p className="text-sm font-semibold">Limited-time beta price</p>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
-                  Lock in the beta rate — price goes up after launch.
-                </p>
-              </div>
+            </button>
+          </div>
+
+          {/* Price display */}
+          <div className="text-center mb-6">
+            <div className="flex items-end justify-center gap-1">
+              <span className="text-xs line-through mb-1" style={{ color: "var(--text-secondary)" }}>
+                ${annual ? ORIGINAL_PRICE * 12 : ORIGINAL_PRICE}
+              </span>
             </div>
-            <div className="text-right shrink-0">
-              <p className="text-xs line-through" style={{ color: "var(--text-secondary)" }}>€10/month</p>
-              <p className="text-2xl font-bold" style={{ color: "#F77F00" }}>€5<span className="text-sm font-normal text-gray-400">/month</span></p>
+            <div className="flex items-end justify-center gap-1">
+              <span className="text-4xl font-bold" style={{ color: "#F77F00" }}>
+                ${annual ? ANNUAL_PRICE : MONTHLY_PRICE}
+              </span>
+              <span className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>
+                /month{annual ? ` · billed $${ANNUAL_TOTAL}/year` : ""}
+              </span>
             </div>
           </div>
 
@@ -157,10 +212,10 @@ export default function SubscriptionPage() {
           </ul>
 
           <button
-            onClick={() => (clerk as any).__internal_openCheckout()}
+            onClick={openCheckout}
             className="w-full py-3 rounded-xl font-bold text-sm transition-all hover:opacity-90"
             style={{ background: "#00B4D8", color: "#0D1117" }}>
-            Upgrade to Premium — €5/month
+            Upgrade to Premium — ${annual ? ANNUAL_PRICE : MONTHLY_PRICE}/month
           </button>
         </div>
       )}
