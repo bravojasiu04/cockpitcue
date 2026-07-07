@@ -221,46 +221,6 @@ function CockpitDemo() {
   );
 }
 
-/* ─── waitlist form ─── */
-function WaitlistForm() {
-  const [email, setEmail]   = useState("");
-  const [status, setStatus] = useState<"idle"|"loading"|"done">("idle");
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    setStatus("loading");
-    await new Promise(r => setTimeout(r, 800));
-    setStatus("done");
-  };
-
-  if (status === "done") {
-    return (
-      <div className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-medium" style={{ background: "rgba(46,204,113,0.12)", color: "#2ECC71", border: "1px solid #2ECC7130" }}>
-        <IconCheck /> You&apos;re on the list — we&apos;ll notify you at launch!
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="flex gap-2 w-full max-w-md">
-      <input
-        type="email" required value={email} onChange={e => setEmail(e.target.value)}
-        placeholder="your@email.com"
-        className="flex-1 px-4 py-3 rounded-xl text-sm outline-none"
-        style={{ background: "rgba(0,180,216,0.08)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-        onFocus={e => (e.target.style.borderColor = "#00B4D8")}
-        onBlur={e => (e.target.style.borderColor = "var(--border)")}
-      />
-      <button type="submit" disabled={status === "loading"}
-        className="px-5 py-3 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-95 whitespace-nowrap"
-        style={{ background: "#00B4D8", color: "#0D1117" }}
-      >
-        {status === "loading" ? "..." : "Join Waitlist"}
-      </button>
-    </form>
-  );
-}
 
 /* ─── page ─── */
 export default function Home() {
@@ -368,7 +328,7 @@ export default function Home() {
         <div className="animate-fade-in-up mb-6 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
           style={{ background: "rgba(0,180,216,0.1)", border: "1px solid #00B4D830", color: "#00B4D8" }}>
           <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-          Now in beta — join the waitlist
+          Now in beta — free to get started
         </div>
 
         <h1 className="animate-fade-in-up delay-100 text-center font-bold leading-tight mb-6"
@@ -385,7 +345,27 @@ export default function Home() {
         </p>
 
         <div className="animate-fade-in-up delay-300 flex flex-col sm:flex-row items-center gap-4 mb-16">
-          <WaitlistForm />
+          <Show when="signed-out">
+            <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+              <button className="px-7 py-3.5 rounded-xl text-sm font-bold transition-all hover:opacity-90 active:scale-95"
+                style={{ background: "#00B4D8", color: "#0D1117" }}>
+                Start for free — no credit card
+              </button>
+            </SignUpButton>
+            <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+              <button className="px-6 py-3.5 rounded-xl text-sm font-medium transition-all hover:opacity-80"
+                style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
+                Sign in
+              </button>
+            </SignInButton>
+          </Show>
+          <Show when="signed-in">
+            <a href="/dashboard"
+              className="px-7 py-3.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
+              style={{ background: "#00B4D8", color: "#0D1117" }}>
+              Go to Dashboard →
+            </a>
+          </Show>
         </div>
 
         <div className="w-full max-w-2xl">
@@ -499,40 +479,68 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
-                <a href="#waitlist"
-                  className="block text-center py-3 rounded-xl font-medium text-sm transition-all hover:opacity-90"
-                  style={{
-                    background: p.highlight ? "#00B4D8" : "rgba(0,180,216,0.1)",
-                    color: p.highlight ? "#0D1117" : "#00B4D8",
-                    border: p.highlight ? "none" : "1px solid #00B4D830",
-                  }}>
-                  {p.cta}
-                </a>
+                <Show when="signed-out">
+                  <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+                    <button className="w-full block text-center py-3 rounded-xl font-medium text-sm transition-all hover:opacity-90"
+                      style={{
+                        background: p.highlight ? "#00B4D8" : "rgba(0,180,216,0.1)",
+                        color: p.highlight ? "#0D1117" : "#00B4D8",
+                        border: p.highlight ? "none" : "1px solid #00B4D830",
+                      }}>
+                      {p.cta}
+                    </button>
+                  </SignUpButton>
+                </Show>
+                <Show when="signed-in">
+                  <a href="/dashboard"
+                    className="block text-center py-3 rounded-xl font-medium text-sm transition-all hover:opacity-90"
+                    style={{
+                      background: p.highlight ? "#00B4D8" : "rgba(0,180,216,0.1)",
+                      color: p.highlight ? "#0D1117" : "#00B4D8",
+                      border: p.highlight ? "none" : "1px solid #00B4D830",
+                    }}>
+                    Go to Dashboard
+                  </a>
+                </Show>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* FINAL CTA */}
-      <section id="waitlist" className="py-24 px-6 relative overflow-hidden"
-        style={{ background: "var(--bg-secondary)", borderTop: "1px solid var(--border)" }}>
-        <div className="absolute inset-0 pointer-events-none"
-          style={{ background: "radial-gradient(ellipse 60% 60% at 50% 50%,rgba(0,180,216,0.06) 0%,transparent 70%)" }} />
-        <div className="max-w-2xl mx-auto text-center relative z-10">
-          <h2 className="text-3xl font-bold mb-4">Ready to make your flows automatic?</h2>
-          <p className="mb-10 text-sm" style={{ color: "var(--text-secondary)" }}>
-            Join pilots building safer habits before they ever leave the ground.
-            Be first to access CockpitCue when we launch.
-          </p>
-          <div className="flex justify-center">
-            <WaitlistForm />
+      {/* FINAL CTA — only for signed-out users */}
+      <Show when="signed-out">
+        <section className="py-24 px-6 relative overflow-hidden"
+          style={{ background: "var(--bg-secondary)", borderTop: "1px solid var(--border)" }}>
+          <div className="absolute inset-0 pointer-events-none"
+            style={{ background: "radial-gradient(ellipse 60% 60% at 50% 50%,rgba(0,180,216,0.06) 0%,transparent 70%)" }} />
+          <div className="max-w-2xl mx-auto text-center relative z-10">
+            <p className="text-xs font-mono mb-3" style={{ color: "#00B4D8" }}>GET STARTED TODAY</p>
+            <h2 className="text-3xl font-bold mb-4">Ready to make your flows automatic?</h2>
+            <p className="mb-10 text-sm" style={{ color: "var(--text-secondary)" }}>
+              Join pilots building safer habits before they ever leave the ground.
+              Free plan available — no credit card required.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+                <button className="px-8 py-4 rounded-xl text-sm font-bold transition-all hover:opacity-90 active:scale-95"
+                  style={{ background: "#00B4D8", color: "#0D1117" }}>
+                  Create free account →
+                </button>
+              </SignUpButton>
+              <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+                <button className="px-6 py-4 rounded-xl text-sm font-medium transition-all hover:opacity-80"
+                  style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
+                  Already have an account? Sign in
+                </button>
+              </SignInButton>
+            </div>
+            <p className="text-xs mt-6" style={{ color: "var(--text-secondary)" }}>
+              Free forever · No credit card · Upgrade anytime
+            </p>
           </div>
-          <p className="text-xs mt-4" style={{ color: "var(--text-secondary)" }}>
-            No spam. No credit card. Early access notification only.
-          </p>
-        </div>
-      </section>
+        </section>
+      </Show>
 
       {/* FOOTER */}
       <footer className="py-8 px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs"
