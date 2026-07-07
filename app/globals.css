@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #0D1117;
+  --bg-secondary: #161B22;
+  --bg-card: #1C2128;
+  --accent-cyan: #00B4D8;
+  --accent-amber: #F77F00;
+  --accent-green: #2ECC71;
+  --accent-red: #E63946;
+  --text-primary: #E8EDF2;
+  --text-secondary: #6B7A8D;
+  --border: #30363D;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ensure animated elements are visible after animation */
+.animate-fade-in-up {
+  animation-fill-mode: forwards !important;
+}
+
+@keyframes glow-cyan {
+  0%, 100% { box-shadow: 0 0 8px rgba(0,180,216,0.4); }
+  50%       { box-shadow: 0 0 24px rgba(0,180,216,0.9); }
+}
+
+@keyframes pulse-amber {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+@keyframes timer-shrink {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+@keyframes draw-step-line {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes marker-fade {
+  0%   { opacity: 1; }
+  40%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes draw-and-fade {
+  0%   { stroke-dashoffset: 1; opacity: 1; }
+  25%  { stroke-dashoffset: 0; opacity: 1; }
+  60%  { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+.animate-fade-in-up  { animation: fade-in-up 0.7s ease forwards; }
+.animate-glow        { animation: glow-cyan 2s ease infinite; }
+.animate-pulse-amber { animation: pulse-amber 1s ease infinite; }
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+
+/* Clerk modal — placeholder visibility */
+.cl-formFieldInput::placeholder { color: #6E7681 !important; opacity: 1 !important; }
+.cl-badge { color: #8B949E !important; background: transparent !important; }
+
+/* Clerk UserProfile — low-contrast value text (username, email, etc.) */
+[class*="cl-"] p[data-color="inherit"],
+[class*="cl-"] span[data-color="inherit"] { color: #E6EDF3 !important; }

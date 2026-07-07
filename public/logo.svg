@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 40" fill="none">
+  <!-- Compass rose -->
+  <g transform="translate(20,20)">
+    <circle cx="0" cy="0" r="14" stroke="#00B4D8" stroke-width="1" stroke-dasharray="2.5 2" fill="none" opacity="0.6"/>
+    <!-- N spike (bright) -->
+    <polygon points="0,-12 2,-5 0,-7 -2,-5" fill="#00B4D8"/>
+    <!-- S spike -->
+    <polygon points="0,12 2,5 0,7 -2,5" fill="#00B4D8" opacity="0.4"/>
+    <!-- E spike -->
+    <polygon points="12,0 5,2 7,0 5,-2" fill="#00B4D8" opacity="0.4"/>
+    <!-- W spike -->
+    <polygon points="-12,0 -5,2 -7,0 -5,-2" fill="#00B4D8" opacity="0.4"/>
+    <!-- Intercardinal -->
+    <polygon points="8,-8 3.5,-1.5 2,-2 1.5,-3.5" fill="#00B4D8" opacity="0.25"/>
+    <polygon points="8,8 1.5,3.5 2,2 3.5,1.5" fill="#00B4D8" opacity="0.25"/>
+    <polygon points="-8,8 -1.5,3.5 -2,2 -3.5,1.5" fill="#00B4D8" opacity="0.25"/>
+    <polygon points="-8,-8 -1.5,-3.5 -2,-2 -3.5,-1.5" fill="#00B4D8" opacity="0.25"/>
+    <!-- Center -->
+    <circle cx="0" cy="0" r="1.8" fill="#00B4D8"/>
+    <circle cx="0" cy="0" r="0.8" fill="#0D1117"/>
+  </g>
+  <!-- CockpitCue wordmark -->
+  <text x="40" y="26" font-family="'Segoe UI', system-ui, Arial, sans-serif" font-size="17" font-weight="600" fill="#00B4D8" letter-spacing="-0.2">CockpitCue</text>
+</svg>
