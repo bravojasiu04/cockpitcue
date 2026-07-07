@@ -139,7 +139,21 @@ export default function SubscriptionPage() {
             </div>
           </div>
 
-          <PricingTable />
+          <PricingTable appearance={{
+            variables: {
+              colorBackground: "#161B22",
+              colorPrimary: "#00B4D8",
+              borderRadius: "0.75rem",
+            },
+            elements: {
+              pricingTableCard: { border: "1px solid #30363D", background: "#161B22" },
+              planTitle: { color: "#E6EDF3" },
+              planPrice: { color: "#E6EDF3" },
+              planDescription: { color: "#8B949E" },
+              planFeatureListItem: { color: "#8B949E" },
+              planFeatureListItemName: { color: "#E6EDF3" },
+            }
+          }} />
         </div>
       )}
     </div>
