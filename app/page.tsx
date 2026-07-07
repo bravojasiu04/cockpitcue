@@ -410,13 +410,13 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-3">
           <Show when="signed-out">
-            <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+            <SignInButton mode="modal" forceRedirectUrl="https://cockpitcue.com/dashboard">
               <button className="text-sm font-medium px-4 py-2 rounded-lg transition-all hover:opacity-80"
                 style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
                 Sign In
               </button>
             </SignInButton>
-            <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+            <SignUpButton mode="modal" forceRedirectUrl="https://cockpitcue.com/dashboard">
               <button className="text-sm font-medium px-4 py-2 rounded-lg transition-all hover:opacity-90"
                 style={{ background: "#00B4D8", color: "#0D1117" }}>
                 Get Started
@@ -483,13 +483,13 @@ export default function Home() {
 
         <div className="animate-fade-in-up delay-300 flex flex-col sm:flex-row items-center gap-4 mb-16">
           <Show when="signed-out">
-            <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+            <SignUpButton mode="modal" forceRedirectUrl="https://cockpitcue.com/dashboard">
               <button className="px-7 py-3.5 rounded-xl text-sm font-bold transition-all hover:opacity-90 active:scale-95"
                 style={{ background: "#00B4D8", color: "#0D1117" }}>
                 Start for free — no credit card
               </button>
             </SignUpButton>
-            <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+            <SignInButton mode="modal" forceRedirectUrl="https://cockpitcue.com/dashboard">
               <button className="px-6 py-3.5 rounded-xl text-sm font-medium transition-all hover:opacity-80"
                 style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
                 Sign in
@@ -617,7 +617,7 @@ export default function Home() {
                   ))}
                 </ul>
                 <Show when="signed-out">
-                  <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+                  <SignUpButton mode="modal" forceRedirectUrl="https://cockpitcue.com/dashboard">
                     <button className="w-full block text-center py-3 rounded-xl font-medium text-sm transition-all hover:opacity-90"
                       style={{
                         background: p.highlight ? "#00B4D8" : "rgba(0,180,216,0.1)",
@@ -659,13 +659,13 @@ export default function Home() {
               Free plan available — no credit card required.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
+              <SignUpButton mode="modal" forceRedirectUrl="https://cockpitcue.com/dashboard">
                 <button className="px-8 py-4 rounded-xl text-sm font-bold transition-all hover:opacity-90 active:scale-95"
                   style={{ background: "#00B4D8", color: "#0D1117" }}>
                   Create free account →
                 </button>
               </SignUpButton>
-              <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+              <SignInButton mode="modal" forceRedirectUrl="https://cockpitcue.com/dashboard">
                 <button className="px-6 py-4 rounded-xl text-sm font-medium transition-all hover:opacity-80"
                   style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
                   Already have an account? Sign in
