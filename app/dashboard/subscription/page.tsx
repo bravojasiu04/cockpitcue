@@ -24,7 +24,7 @@ export default function SubscriptionPage() {
   const clerk = useClerk();
   const [subscription, setSubscription] = useState<Subscription>(null);
   const [loadingSub, setLoadingSub] = useState(true);
-  const [annual, setAnnual] = useState(false);
+  const [annual, setAnnual] = useState(true);
 
   useEffect(() => {
     if (!isLoaded || !user) return;
@@ -177,20 +177,45 @@ export default function SubscriptionPage() {
           </div>
 
           {/* Price display */}
-          <div className="text-center mb-6">
-            <div className="flex items-end justify-center gap-1">
-              <span className="text-xs line-through mb-1" style={{ color: "var(--text-secondary)" }}>
-                ${annual ? ORIGINAL_PRICE * 12 : ORIGINAL_PRICE}
+          <div className="relative text-center mb-6 py-6 rounded-2xl overflow-hidden"
+            style={{
+              background: "linear-gradient(135deg, rgba(247,127,0,0.06) 0%, rgba(0,180,216,0.06) 100%)",
+              border: "1px solid rgba(247,127,0,0.35)",
+              boxShadow: "0 0 32px rgba(247,127,0,0.08) inset",
+            }}>
+            {/* Corner decorations */}
+            <div className="absolute top-0 left-0 w-12 h-12 opacity-20"
+              style={{ background: "radial-gradient(circle at 0 0, #F77F00, transparent 70%)" }} />
+            <div className="absolute bottom-0 right-0 w-12 h-12 opacity-20"
+              style={{ background: "radial-gradient(circle at 100% 100%, #00B4D8, transparent 70%)" }} />
+
+            {/* Star + label */}
+            <div className="flex items-center justify-center gap-1.5 mb-2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#F77F00">
+                <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"/>
+              </svg>
+              <span className="text-xs font-bold tracking-widest uppercase" style={{ color: "#F77F00" }}>
+                Beta Exclusive
               </span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="#F77F00">
+                <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"/>
+              </svg>
             </div>
-            <div className="flex items-end justify-center gap-1">
-              <span className="text-4xl font-bold" style={{ color: "#F77F00" }}>
+
+            <span className="text-xs line-through" style={{ color: "var(--text-secondary)" }}>
+              ${annual ? ORIGINAL_PRICE * 12 : ORIGINAL_PRICE}{annual ? "/year" : "/month"}
+            </span>
+            <div className="flex items-end justify-center gap-1 mt-0.5">
+              <span className="text-5xl font-bold" style={{ color: "#F77F00" }}>
                 ${annual ? ANNUAL_PRICE : MONTHLY_PRICE}
               </span>
-              <span className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>
-                /month{annual ? ` · billed $${ANNUAL_TOTAL}/year` : ""}
-              </span>
+              <span className="text-base mb-1.5" style={{ color: "var(--text-secondary)" }}>/month</span>
             </div>
+            {annual && (
+              <p className="text-xs mt-1" style={{ color: "#8B949E" }}>
+                billed <span style={{ color: "#E6EDF3", fontWeight: 600 }}>${ANNUAL_TOTAL}/year</span>
+              </p>
+            )}
           </div>
 
           {/* Feature list */}
