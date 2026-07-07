@@ -492,7 +492,7 @@ export default function Home() {
                     </p>
                   )}
                 </div>
-                <ul className="flex flex-col gap-3">
+                <ul className="flex flex-col gap-3 flex-1">
                   {p.features.map(f => (
                     <li key={f} className="flex items-center gap-2 text-sm">
                       <span style={{ color: "#00B4D8" }}><IconCheck /></span>{f}
