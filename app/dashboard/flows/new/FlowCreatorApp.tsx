@@ -46,7 +46,7 @@ async function pdfToDataUrl(file: File): Promise<string> {
   const canvas = document.createElement("canvas");
   canvas.width = viewport.width;
   canvas.height = viewport.height;
-  await page.render({ canvasContext: canvas.getContext("2d")!, viewport }).promise;
+  await page.render({ canvasContext: canvas.getContext("2d")!, canvas, viewport }).promise;
   return canvas.toDataURL("image/png");
 }
 
