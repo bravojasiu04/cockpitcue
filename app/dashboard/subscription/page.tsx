@@ -140,19 +140,15 @@ export default function SubscriptionPage() {
           </div>
 
           <PricingTable appearance={{
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             variables: {
               colorBackground: "#161B22",
               colorPrimary: "#00B4D8",
+              colorText: "#E6EDF3",
+              colorTextSecondary: "#8B949E",
+              colorNeutral: "#E6EDF3",
               borderRadius: "0.75rem",
-            },
-            elements: {
-              pricingTableCard: { border: "1px solid #30363D", background: "#161B22" },
-              planTitle: { color: "#E6EDF3" },
-              planPrice: { color: "#E6EDF3" },
-              planDescription: { color: "#8B949E" },
-              planFeatureListItem: { color: "#8B949E" },
-              planFeatureListItemName: { color: "#E6EDF3" },
-            }
+            } as any,
           }} />
         </div>
       )}
