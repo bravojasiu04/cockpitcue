@@ -1,15 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
+import { kset, kget, kdel } from "@/app/lib/redis";
 
-// In-memory room store (session-only, resets on cold start)
-// Structure: roomCode -> { hostId, guestId | null, flowId, flowData }
-const rooms = new Map<string, {
-  hostId: string;
-  guestId: string | null;
-  flowId: string | null;
-}>();
+type Room = { hostId: string; guestId: string | null; flowId: string | null };
 
-function generateRoomCode(): string {
+function generateRoomCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
@@ -18,10 +13,14 @@ export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Try up to 5 codes to avoid (very unlikely) collisions
   let code = generateRoomCode();
-  while (rooms.has(code)) code = generateRoomCode();
+  for (let i = 0; i < 5; i++) {
+    if (!(await kget(`collab:room:${code}`))) break;
+    code = generateRoomCode();
+  }
 
-  rooms.set(code, { hostId: userId, guestId: null, flowId: null });
+  await kset(`collab:room:${code}`, { hostId: userId, guestId: null, flowId: null });
   return NextResponse.json({ roomCode: code });
 }
 
@@ -32,19 +31,16 @@ export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code")?.toUpperCase();
   if (!code) return NextResponse.json({ error: "Missing code" }, { status: 400 });
 
-  const room = rooms.get(code);
+  const room = await kget<Room>(`collab:room:${code}`);
   if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
 
-  // Allow host or at most 1 guest
   const isHost = room.hostId === userId;
   const isGuest = room.guestId === userId;
 
   if (!isHost && !isGuest) {
-    if (room.guestId !== null) {
-      return NextResponse.json({ error: "Room is full" }, { status: 409 });
-    }
-    // Join as guest
+    if (room.guestId !== null) return NextResponse.json({ error: "Room is full" }, { status: 409 });
     room.guestId = userId;
+    await kset(`collab:room:${code}`, room);
   }
 
   return NextResponse.json({
@@ -62,8 +58,8 @@ export async function DELETE(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code")?.toUpperCase();
   if (!code) return NextResponse.json({ error: "Missing code" }, { status: 400 });
 
-  const room = rooms.get(code);
-  if (room?.hostId === userId) rooms.delete(code);
+  const room = await kget<Room>(`collab:room:${code}`);
+  if (room?.hostId === userId) await kdel(`collab:room:${code}`);
 
   return NextResponse.json({ ok: true });
 }
