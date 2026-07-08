@@ -38,7 +38,7 @@ export default function OnboardingPage() {
   /* skip if already done */
   useEffect(() => {
     if (!isLoaded || !user) return;
-    if ((user.privateMetadata as Record<string, unknown>)?.survey) {
+    if ((user.unsafeMetadata as Record<string, unknown>)?.survey) {
       router.replace("/dashboard");
     }
   }, [isLoaded, user, router]);
