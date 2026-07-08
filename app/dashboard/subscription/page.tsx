@@ -59,7 +59,7 @@ export default function SubscriptionPage() {
           colorInputPlaceholder: "#484F58",
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
-        elements: {
+        stripeAppearance: {
           theme: "night",
           variables: {
             colorPrimary: "#00B4D8",
