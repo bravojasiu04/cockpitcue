@@ -234,7 +234,28 @@ export default function CoopQuizPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomCode, isPremium, user]);
 
-  // Advance to role-select only when BOTH sides have loaded their data
+  // Periodically re-announce readiness while in lobby so that whichever user
+  // joins second is guaranteed to receive the event (avoids lost-message races).
+  useEffect(() => {
+    if (!myReady) return;
+    const iv = setInterval(() => {
+      setPhase(prev => {
+        if (prev !== "loading" && prev !== "lobby") { clearInterval(iv); return prev; }
+        fetch("/api/collab/event", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            roomCode, eventName: "collab:ready", data: {},
+            socketId: mySocketIdRef.current,
+          }),
+        });
+        return prev;
+      });
+    }, 1500);
+    return () => clearInterval(iv);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myReady, roomCode]);
+
+  // Advance to role-select when both pilots are present and both have loaded data.
   useEffect(() => {
     if (partnerConnected && myReady && partnerReady) {
       setPhase(prev => (prev === "loading" || prev === "lobby") ? "role-select" : prev);
