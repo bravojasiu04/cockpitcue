@@ -26,6 +26,7 @@ export default function CollabFlowPage() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const [canvasW, setCanvasW] = useState(800);
   const [canvasH, setCanvasH] = useState(500);
+  const mySocketIdRef = useRef<string>("");
 
   useEffect(() => {
     if (!isPremium || !user) return;
@@ -37,6 +38,9 @@ export default function CollabFlowPage() {
     setFlows(getFlows());
 
     const pusher = getPusherClient();
+    const captureSid = () => { mySocketIdRef.current = pusher.connection.socket_id ?? ""; };
+    if (pusher.connection.socket_id) captureSid();
+    pusher.connection.bind("connected", captureSid);
     const channel = pusher.subscribe(`presence-collab-${roomCode}`);
 
     channel.bind("pusher:subscription_succeeded", (members: any) => {
@@ -54,7 +58,7 @@ export default function CollabFlowPage() {
     });
 
     channel.bind("collab:flow-selected", async (data: { senderId: string; flowId: string }) => {
-      if (data.senderId !== user.id) {
+      if (data.senderId !== mySocketIdRef.current) {
         const res = await fetch(`/api/collab/flow?code=${roomCode}`);
         if (res.ok) {
           const { flow } = await res.json();
@@ -66,7 +70,7 @@ export default function CollabFlowPage() {
     });
 
     channel.bind("collab:step-change", (data: { senderId: string; stepIdx: number }) => {
-      if (data.senderId !== user.id) setStepIdx(data.stepIdx);
+      if (data.senderId !== mySocketIdRef.current) setStepIdx(data.stepIdx);
     });
 
     return () => {
@@ -87,10 +91,11 @@ export default function CollabFlowPage() {
   });
 
   async function broadcast(eventName: string, data: object) {
+    const socketId = getPusherClient().connection.socket_id ?? "";
     await fetch("/api/collab/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roomCode, eventName, data }),
+      body: JSON.stringify({ roomCode, eventName, data, socketId }),
     });
   }
 

@@ -269,6 +269,7 @@ export default function FlowEditorApp({ id }: { id: string }) {
           roomCode: collabRoom,
           eventName: "collab:flow-update",
           data: { steps: nextSteps, annotations: nextAnnotations, sequenceOrder: nextOrder, flowName: name },
+          socketId: getPusherClient().connection.socket_id ?? "",
         }),
       });
     }, 400);

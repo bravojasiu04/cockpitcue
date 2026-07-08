@@ -76,6 +76,7 @@ export default function CoopQuizPage() {
   const channelRef = useRef<any>(null);
   const configLoadedRef = useRef(false);
   const initializedRef = useRef(false);
+  const mySocketIdRef = useRef<string>("");
 
   // Ready-handshake state
   const [myReady, setMyReady] = useState(false);
@@ -120,7 +121,7 @@ export default function CoopQuizPage() {
         configLoadedRef.current = true;
         fetch("/api/collab/event", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roomCode, eventName: "collab:ready", data: {} }),
+          body: JSON.stringify({ roomCode, eventName: "collab:ready", data: {}, socketId: mySocketIdRef.current }),
         });
       })
       .catch(err => setErrorMsg(err.message ?? "Could not load session."));
@@ -129,6 +130,21 @@ export default function CoopQuizPage() {
     const channel = pusher.subscribe(`presence-collab-${roomCode}`);
     channelRef.current = channel;
 
+    // Capture own socket ID as soon as available so event handlers can filter
+    // out self-echoes without relying on user.id (which breaks same-account tabs).
+    const captureSid = () => { mySocketIdRef.current = pusher.connection.socket_id ?? ""; };
+    if (pusher.connection.socket_id) captureSid();
+    pusher.connection.bind("connected", () => {
+      captureSid();
+      // Re-announce readiness after reconnect (e.g. background window throttle)
+      if (configLoadedRef.current) {
+        fetch("/api/collab/event", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roomCode, eventName: "collab:ready", data: {}, socketId: mySocketIdRef.current }),
+        });
+      }
+    });
+
     channel.bind("pusher:subscription_succeeded", (members: any) => {
       if (members.count >= 2) {
         setPartnerConnected(true);
@@ -136,7 +152,7 @@ export default function CoopQuizPage() {
         if (configLoadedRef.current) {
           fetch("/api/collab/event", {
             method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ roomCode, eventName: "collab:ready", data: {} }),
+            body: JSON.stringify({ roomCode, eventName: "collab:ready", data: {}, socketId: mySocketIdRef.current }),
           });
         }
       }
@@ -148,37 +164,26 @@ export default function CoopQuizPage() {
       if (configLoadedRef.current) {
         fetch("/api/collab/event", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roomCode, eventName: "collab:ready", data: {} }),
+          body: JSON.stringify({ roomCode, eventName: "collab:ready", data: {}, socketId: mySocketIdRef.current }),
         });
       }
     });
     channel.bind("pusher:member_removed", () => setPartnerDisconnected(true));
 
-    // When our own WebSocket reconnects after being throttled in a background
-    // window, re-announce readiness so the partner's state stays in sync.
-    pusher.connection.bind("connected", () => {
-      if (configLoadedRef.current) {
-        fetch("/api/collab/event", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roomCode, eventName: "collab:ready", data: {} }),
-        });
-      }
-    });
-
     channel.bind("collab:ready", (data: { senderId: string }) => {
-      if (data.senderId !== user.id) setPartnerReady(true);
+      if (data.senderId !== mySocketIdRef.current) setPartnerReady(true);
     });
 
     channel.bind("collab:role-chosen", (data: { senderId: string; role: Role }) => {
-      if (data.senderId !== user.id) setPartnerRole(data.role);
+      if (data.senderId !== mySocketIdRef.current) setPartnerRole(data.role);
     });
 
     channel.bind("collab:start", (data: { senderId: string }) => {
-      if (data.senderId !== user.id) { setPhase("running"); setIntroPhase(true); setCountdown(3); }
+      if (data.senderId !== mySocketIdRef.current) { setPhase("running"); setIntroPhase(true); setCountdown(3); }
     });
 
     channel.bind("collab:step-result", (data: RemoteStep & { senderId: string }) => {
-      if (data.senderId !== user.id) {
+      if (data.senderId !== mySocketIdRef.current) {
         setRemoteSteps(prev => [...prev, { stepId: data.stepId, correct: data.correct, role: data.role }]);
         setFeedback({ stepId: data.stepId, correct: data.correct, role: data.role, clickX: -1, clickY: -1 });
         if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
@@ -187,7 +192,7 @@ export default function CoopQuizPage() {
     });
 
     channel.bind("collab:next-flow", (data: { senderId: string; flowIndex: number }) => {
-      if (data.senderId !== user.id) {
+      if (data.senderId !== mySocketIdRef.current) {
         setFlowIndex(data.flowIndex);
         setMySteps([]);
         setRemoteSteps([]);
@@ -201,7 +206,7 @@ export default function CoopQuizPage() {
     });
 
     channel.bind("collab:quiz-done", (data: { senderId: string; allResults: typeof allResults }) => {
-      if (data.senderId !== user.id) {
+      if (data.senderId !== mySocketIdRef.current) {
         // Merge partner's allResults in case we didn't compute ours yet
         if (data.allResults?.length) {
           setAllResults(prev => prev.length >= data.allResults.length ? prev : data.allResults);
@@ -211,7 +216,7 @@ export default function CoopQuizPage() {
     });
 
     channel.bind("collab:restart", (data: { senderId: string }) => {
-      if (data.senderId !== user.id) {
+      if (data.senderId !== mySocketIdRef.current) {
         setFlowIndex(0);
         setMySteps([]); setRemoteSteps([]); setFeedback(null);
         setArrows([]); setPersistedMarkers([]);
@@ -272,10 +277,11 @@ export default function CoopQuizPage() {
   }
 
   async function broadcast(eventName: string, data: object) {
+    const socketId = channelRef.current?.pusher?.connection?.socket_id ?? "";
     await fetch("/api/collab/event", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roomCode, eventName, data }),
+      body: JSON.stringify({ roomCode, eventName, data, socketId }),
     });
   }
 

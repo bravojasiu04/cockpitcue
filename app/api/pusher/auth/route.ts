@@ -16,7 +16,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const userData = { user_id: userId };
+  // Use socketId as user_id so each browser tab is a unique presence-channel
+  // member even when two tabs share the same Clerk account (e.g. during testing).
+  const userData = { user_id: socketId, user_info: { userId } };
   const authResponse = pusherServer.authorizeChannel(socketId, channel, userData);
   return NextResponse.json(authResponse);
 }
