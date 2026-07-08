@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { getFlows, getAircrafts, saveFlow, type FlowStep, type SavedFlow, type Aircraft, type FlowAnnotation } from "@/app/lib/storage";
 import FlowPlayer from "@/app/dashboard/flows/FlowPlayer";
 import AnnotationsLayer from "@/app/dashboard/flows/AnnotationsLayer";
+import { getPusherClient } from "@/app/lib/pusher-client";
 
 export default function FlowEditorApp({ id }: { id: string }) {
   const [flow, setFlow] = useState<SavedFlow | null>(null);
@@ -32,6 +33,13 @@ export default function FlowEditorApp({ id }: { id: string }) {
   const draggingRef = useRef<string | null>(null);
   const didDragRef = useRef(false);
   const draggingItemRef = useRef<string | null>(null);
+
+  /* ─── Collab state ─── */
+  const [collabRoom, setCollabRoom] = useState<string | null>(null);
+  const [showCollabPopover, setShowCollabPopover] = useState(false);
+  const [collabCopied, setCollabCopied] = useState(false);
+  const broadcastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSelfUpdate = useRef(false);
 
   useEffect(() => {
     const found = getFlows().find(f => f.id === id);
@@ -68,6 +76,7 @@ export default function FlowEditorApp({ id }: { id: string }) {
       const snapshot = next.pop()!;
       setSteps(snapshot);
       setSaved(false);
+      broadcastState(snapshot, annotations, sequenceOrder, flow?.name ?? "");
       return next;
     });
   }
@@ -104,10 +113,13 @@ export default function FlowEditorApp({ id }: { id: string }) {
     const { x, y } = getCanvasPct(e);
     const newId = crypto.randomUUID();
     pushHistory(steps);
-    setSteps(prev => [...prev, { id: newId, x, y, label: `Step ${prev.length + 1}`, action: "", role: isMultiPilot ? "PF" : undefined }]);
-    setSequenceOrder(prev => [...prev, newId]);
+    const nextSteps = [...steps, { id: newId, x, y, label: `Step ${steps.length + 1}`, action: "", role: isMultiPilot ? "PF" as const : undefined }];
+    const nextOrder = [...sequenceOrder, newId];
+    setSteps(nextSteps);
+    setSequenceOrder(nextOrder);
     setSelected(newId);
     setSaved(false);
+    broadcastState(nextSteps, annotations, nextOrder, flow?.name ?? "");
   }
 
   function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
@@ -134,17 +146,24 @@ export default function FlowEditorApp({ id }: { id: string }) {
   }
 
   function handleMouseUp() {
+    const wasDragging = !!draggingRef.current;
     draggingRef.current = null;
+    if (wasDragging) {
+      broadcastState(steps, annotations, sequenceOrder, flow?.name ?? "");
+    }
     if (tool === "draw" && isDrawingRef.current) {
       isDrawingRef.current = false;
       if (currentDrawRef.current.length > 1) {
         const annId = crypto.randomUUID();
-        setAnnotations(prev => [...prev, {
-          type: "draw", id: annId,
+        const nextAnnotations = [...annotations, {
+          type: "draw" as const, id: annId,
           points: currentDrawRef.current, color: activeColor, width: activeWidth,
-        }]);
-        setSequenceOrder(prev => [...prev, annId]);
+        }];
+        const nextOrder = [...sequenceOrder, annId];
+        setAnnotations(nextAnnotations);
+        setSequenceOrder(nextOrder);
         setSaved(false);
+        broadcastState(steps, nextAnnotations, nextOrder, flow?.name ?? "");
       }
       currentDrawRef.current = [];
       setLiveDrawPoints([]);
@@ -159,31 +178,41 @@ export default function FlowEditorApp({ id }: { id: string }) {
     }
     if (lastAnnId) {
       const id = lastAnnId;
-      setAnnotations(prev => prev.filter(a => a.id !== id));
-      setSequenceOrder(prev => prev.filter(sid => sid !== id));
+      const nextAnnotations = annotations.filter(a => a.id !== id);
+      const nextOrder = sequenceOrder.filter(sid => sid !== id);
+      setAnnotations(nextAnnotations);
+      setSequenceOrder(nextOrder);
       setSaved(false);
+      broadcastState(steps, nextAnnotations, nextOrder, flow?.name ?? "");
     }
   }
 
   function handleClearAnnotations() {
     const annIds = new Set(annotations.map(a => a.id));
+    const nextOrder = sequenceOrder.filter(id => !annIds.has(id));
     setAnnotations([]);
-    setSequenceOrder(prev => prev.filter(id => !annIds.has(id)));
+    setSequenceOrder(nextOrder);
     setSaved(false);
+    broadcastState(steps, [], nextOrder, flow?.name ?? "");
   }
 
   function updateStep(id: string, field: keyof FlowStep, value: string | boolean) {
     pushHistory(steps);
-    setSteps(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+    const nextSteps = steps.map(s => s.id === id ? { ...s, [field]: value } : s);
+    setSteps(nextSteps);
     setSaved(false);
+    broadcastState(nextSteps, annotations, sequenceOrder, flow?.name ?? "");
   }
 
   function deleteStep(id: string) {
     pushHistory(steps);
-    setSteps(prev => prev.filter(s => s.id !== id));
-    setSequenceOrder(prev => prev.filter(sid => sid !== id));
+    const nextSteps = steps.filter(s => s.id !== id);
+    const nextOrder = sequenceOrder.filter(sid => sid !== id);
+    setSteps(nextSteps);
+    setSequenceOrder(nextOrder);
     if (selected === id) setSelected(null);
     setSaved(false);
+    broadcastState(nextSteps, annotations, nextOrder, flow?.name ?? "");
   }
 
   function reorderSequence(dragId: string, overId: string) {
@@ -202,6 +231,72 @@ export default function FlowEditorApp({ id }: { id: string }) {
       setSteps(orderedStepIds.map(id => steps.find(s => s.id === id)!));
     }
     setSaved(false);
+  }
+
+  /* Subscribe to Pusher collab channel (host only) */
+  useEffect(() => {
+    if (!collabRoom) return;
+    const pusher = getPusherClient();
+    const channel = pusher.subscribe(`presence-collab-${collabRoom}`);
+    channel.bind("collab:flow-update", (data: { steps: FlowStep[]; annotations: FlowAnnotation[]; sequenceOrder: string[]; flowName: string }) => {
+      isSelfUpdate.current = true;
+      setSteps(data.steps);
+      setAnnotations(data.annotations);
+      setSequenceOrder(data.sequenceOrder);
+      setFlow(f => f ? { ...f, name: data.flowName } : f);
+      setSaved(false);
+      isSelfUpdate.current = false;
+    });
+    return () => {
+      channel.unbind_all();
+      pusher.unsubscribe(`presence-collab-${collabRoom}`);
+    };
+  }, [collabRoom]);
+
+  const broadcastState = useCallback((
+    nextSteps: FlowStep[],
+    nextAnnotations: FlowAnnotation[],
+    nextOrder: string[],
+    name: string,
+  ) => {
+    if (!collabRoom || isSelfUpdate.current) return;
+    if (broadcastTimerRef.current) clearTimeout(broadcastTimerRef.current);
+    broadcastTimerRef.current = setTimeout(() => {
+      fetch("/api/collab/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomCode: collabRoom,
+          eventName: "collab:flow-update",
+          data: { steps: nextSteps, annotations: nextAnnotations, sequenceOrder: nextOrder, flowName: name },
+        }),
+      });
+    }, 400);
+  }, [collabRoom]);
+
+  async function startCollab() {
+    if (!flow) return;
+    const res = await fetch("/api/collab/room", { method: "POST" });
+    const { roomCode } = await res.json();
+    // Upload full flow to server so guest can load it
+    await fetch("/api/collab/flow", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        roomCode,
+        flow: {
+          steps,
+          annotations,
+          sequenceOrder,
+          imageDataUrl: flow.imageDataUrl,
+          flowName: flow.name,
+          aircraftId: flow.aircraftId,
+          cockpitType: aircraft?.cockpitType,
+        },
+      }),
+    });
+    setCollabRoom(roomCode);
+    setShowCollabPopover(true);
   }
 
   function handleSave() {
@@ -401,6 +496,51 @@ export default function FlowEditorApp({ id }: { id: string }) {
             </svg>
             Undo
           </button>
+          {/* Collaborate button + popover */}
+          <div className="relative ml-auto">
+            <button
+              onClick={() => collabRoom ? setShowCollabPopover(v => !v) : startCollab()}
+              title="Collaborate — co-edit this flow with another user"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+              style={{
+                background: collabRoom ? "rgba(0,180,216,0.12)" : "transparent",
+                color: collabRoom ? "#00B4D8" : "var(--text-secondary)",
+                border: collabRoom ? "1px solid #00B4D830" : "1px solid transparent",
+              }}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <circle cx="5" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.4"/>
+                <path d="M1 12c0-2 1.8-3.5 4-3.5s4 1.5 4 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                <path d="M10 8c1.2.3 2.5 1.4 2.5 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+              </svg>
+              {collabRoom ? "Collab: ON" : "Collaborate"}
+            </button>
+            {showCollabPopover && collabRoom && (
+              <div className="absolute top-9 right-0 z-30 rounded-xl p-4 w-64"
+                style={{ background: "#0D1117", border: "1px solid var(--border)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+                <p className="text-xs font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Room code</p>
+                <p className="text-xs mb-3" style={{ color: "var(--text-secondary)" }}>
+                  Partner joins via My Flows → join box
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 flex items-center justify-center py-2 rounded-lg font-mono text-lg font-bold tracking-widest"
+                    style={{ background: "rgba(0,180,216,0.08)", border: "1px solid #00B4D820", color: "#00B4D8" }}>
+                    {collabRoom}
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(collabRoom!);
+                      setCollabCopied(true);
+                      setTimeout(() => setCollabCopied(false), 1800);
+                    }}
+                    className="px-3 py-2 rounded-lg text-xs font-medium transition-all"
+                    style={{ background: collabCopied ? "rgba(46,204,113,0.15)" : "rgba(0,180,216,0.1)", color: collabCopied ? "#2ECC71" : "#00B4D8", border: `1px solid ${collabCopied ? "#2ECC7130" : "#00B4D830"}` }}>
+                    {collabCopied ? "✓" : "Copy"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <span className="ml-1 text-xs" style={{ color: "var(--text-secondary)" }}>
             {tool === "add" ? "Click on the image to place a step marker" : tool === "move" ? "Drag a marker to reposition it" : tool === "text" ? "Click on the image to add text" : "Click and drag to draw"}
           </span>
@@ -471,9 +611,12 @@ export default function FlowEditorApp({ id }: { id: string }) {
             onPendingTextCommit={text => {
               if (pendingText) {
                 const annId = crypto.randomUUID();
-                setAnnotations(prev => [...prev, { type: "text", id: annId, x: pendingText.x, y: pendingText.y, text, color: activeColor }]);
-                setSequenceOrder(prev => [...prev, annId]);
+                const nextAnnotations = [...annotations, { type: "text" as const, id: annId, x: pendingText.x, y: pendingText.y, text, color: activeColor }];
+                const nextOrder = [...sequenceOrder, annId];
+                setAnnotations(nextAnnotations);
+                setSequenceOrder(nextOrder);
                 setSaved(false);
+                broadcastState(steps, nextAnnotations, nextOrder, flow?.name ?? "");
               }
               setPendingText(null);
             }}
@@ -712,7 +855,7 @@ export default function FlowEditorApp({ id }: { id: string }) {
                       )}
                     </div>
                     <button
-                      onClick={e => { e.stopPropagation(); const id = itemId; setAnnotations(prev => prev.filter(a => a.id !== id)); setSequenceOrder(prev => prev.filter(sid => sid !== id)); setSaved(false); }}
+                      onClick={e => { e.stopPropagation(); const id = itemId; const na = annotations.filter(a => a.id !== id); const no = sequenceOrder.filter(s => s !== id); setAnnotations(na); setSequenceOrder(no); setSaved(false); broadcastState(steps, na, no, flow?.name ?? ""); }}
                       className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                       style={{ color: "#E63946" }}>
                       <svg width="12" height="12" viewBox="0 0 14 14" fill="none">

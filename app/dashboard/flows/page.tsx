@@ -15,6 +15,7 @@ export default function FlowsPage() {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [importStatus, setImportStatus] = useState<"idle" | "success" | "error">("idle");
+  const [collabJoinCode, setCollabJoinCode] = useState("");
 
   useEffect(() => {
     const ac = getAircrafts();
@@ -212,6 +213,32 @@ export default function FlowsPage() {
             </>
           )}
         </div>
+      </div>
+
+      {/* Collab join box */}
+      <div className="mb-6 p-4 rounded-2xl flex items-center gap-3"
+        style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+        <span className="text-lg shrink-0">🤝</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium mb-1">Join a co-edit session?</p>
+          <input
+            type="text"
+            value={collabJoinCode}
+            onChange={e => setCollabJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+            onKeyDown={e => { if (e.key === "Enter" && collabJoinCode.length === 6) window.location.href = `/dashboard/flows/new?collab=${collabJoinCode}`; }}
+            placeholder="Enter room code (e.g. ABC123)…"
+            maxLength={6}
+            className="w-full text-sm outline-none bg-transparent font-mono tracking-widest uppercase"
+            style={{ color: collabJoinCode.length > 0 ? "#00B4D8" : "var(--text-secondary)" }}
+          />
+        </div>
+        {collabJoinCode.length === 6 && (
+          <a href={`/dashboard/flows/new?collab=${collabJoinCode}`}
+            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80"
+            style={{ background: "rgba(0,180,216,0.15)", color: "#00B4D8", border: "1px solid #00B4D830" }}>
+            Join →
+          </a>
+        )}
       </div>
 
       {aircraftsWithFlows.length === 0 ? (

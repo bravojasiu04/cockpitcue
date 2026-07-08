@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { getAircrafts, getFlows, type Aircraft, type SavedFlow } from "@/app/lib/storage";
 import { saveQuizEntry } from "@/app/lib/quizHistory";
 import { usePlan } from "@/app/lib/usePlan";
@@ -14,6 +14,7 @@ type QuizConfig = {
   shuffleFlows: boolean;
   excludedFlowIds: string[];
   stepTimeLimit: number | null;
+  voiceEnabled: boolean;
 };
 
 type StepResult = { correct: boolean };
@@ -47,6 +48,7 @@ function FlowQuizPlayer({
   stepTimeLimit,
   examMode,
   examTimeLeft,
+  voiceEnabled,
   onDone,
 }: {
   flow: SavedFlow;
@@ -55,6 +57,7 @@ function FlowQuizPlayer({
   stepTimeLimit: number | null;
   examMode: boolean;
   examTimeLeft: number | null;
+  voiceEnabled: boolean;
   onDone: (result: FlowResult) => void;
 }) {
   const [introPhase, setIntroPhase] = useState(true);
@@ -110,6 +113,7 @@ function FlowQuizPlayer({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [introPhase]);
+
 
   /* step countdown timer — resets on each new step, fires timeout on expiry */
   useEffect(() => {
@@ -199,6 +203,15 @@ function FlowQuizPlayer({
           setPersistedMarkers(prev => prev.filter(m => m.stepId !== prevStep.id));
         }, 2800);
       }
+    }
+
+    if (correct && voiceEnabled) {
+      window.speechSynthesis.cancel();
+      const text = step.action ? `${step.label}, ${step.action}` : step.label;
+      const utt = new SpeechSynthesisUtterance(text);
+      utt.lang = "en-US";
+      utt.rate = 1.2;
+      window.speechSynthesis.speak(utt);
     }
 
     if (correct) {
@@ -684,9 +697,55 @@ function QuizSummary({ results, examMode, onRestart }: { results: FlowResult[]; 
    ════════════════════════════════════════════════ */
 export default function QuizzesPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { isPremium } = usePlan();
   const [aircrafts, setAircrafts] = useState<Aircraft[]>([]);
   const [flows, setFlows] = useState<SavedFlow[]>([]);
+
+  /* collab state */
+  const [collabEnabled, setCollabEnabled] = useState(false);
+  const [collabCode, setCollabCode] = useState<string | null>(null);
+  const [collabJoinInput, setCollabJoinInput] = useState("");
+  const [collabLoading, setCollabLoading] = useState(false);
+  const [collabCopied, setCollabCopied] = useState(false);
+  const [collabJoinError, setCollabJoinError] = useState<string | null>(null);
+  const [collabJoinLoading, setCollabJoinLoading] = useState(false);
+
+  async function joinCollabQuiz() {
+    const code = collabJoinInput.trim().toUpperCase();
+    if (code.length !== 6) return;
+    setCollabJoinError(null);
+    setCollabJoinLoading(true);
+    try {
+      const res = await fetch(`/api/collab/room?code=${code}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        if (res.status === 404) setCollabJoinError("Room not found. Check the code and try again.");
+        else if (res.status === 409) setCollabJoinError("Room is full — only 2 pilots per session.");
+        else setCollabJoinError(body.error ?? "Could not join. Try again.");
+        return;
+      }
+      router.push(`/dashboard/collaborate/quiz/${code}?role=guest`);
+    } catch {
+      setCollabJoinError("Network error. Check your connection and try again.");
+    } finally {
+      setCollabJoinLoading(false);
+    }
+  }
+
+  async function enableCollab() {
+    if (collabCode) { setCollabEnabled(true); return; }
+    setCollabLoading(true);
+    try {
+      const res = await fetch("/api/collab/room", { method: "POST" });
+      const { roomCode } = await res.json();
+      setCollabCode(roomCode);
+    } finally {
+      setCollabLoading(false);
+    }
+    setCollabEnabled(true);
+  }
+
   const [config, setConfig] = useState<QuizConfig>({
     mode: "practice",
     aircraftId: "",
@@ -695,6 +754,7 @@ export default function QuizzesPage() {
     shuffleFlows: true,
     excludedFlowIds: [],
     stepTimeLimit: null,
+    voiceEnabled: false,
   });
 
   const [quizFlows, setQuizFlows] = useState<SavedFlow[]>([]);
@@ -739,7 +799,24 @@ export default function QuizzesPage() {
     setPhase("summary");
   }
 
-  function startQuiz() {
+  async function startQuiz() {
+    if (collabEnabled && collabCode) {
+      await fetch("/api/collab/flow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomCode: collabCode,
+          quizConfig: {
+            flows: activeFlows,
+            aircraftId: config.aircraftId,
+            difficulty: config.difficulty,
+            voiceEnabled: config.voiceEnabled,
+          },
+        }),
+      });
+      router.push(`/dashboard/collaborate/quiz/${collabCode}`);
+      return;
+    }
     const isExam = config.mode === "exam";
     const ordered = (isExam || config.shuffleFlows)
       ? [...activeFlows].sort(() => Math.random() - 0.5)
@@ -799,6 +876,7 @@ export default function QuizzesPage() {
         stepTimeLimit={config.mode === "exam" ? 2 : config.stepTimeLimit}
         examMode={config.mode === "exam"}
         examTimeLeft={examSecondsLeft}
+        voiceEnabled={config.voiceEnabled}
         onDone={handleFlowDone}
       />
     );
@@ -883,6 +961,101 @@ export default function QuizzesPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-5">
+
+            {/* Collaborate toggle */}
+            <section className="rounded-xl p-5" style={{
+              background: "var(--bg-card)",
+              border: `1px solid ${!isPremium ? "rgba(247,127,0,0.3)" : collabEnabled ? "rgba(0,180,216,0.4)" : "var(--border)"}`,
+              opacity: !isPremium ? 0.8 : 1,
+            }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{!isPremium ? "🔒" : "🤝"}</span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold">Collaborate</p>
+                      {!isPremium && (
+                        <span className="text-xs px-1.5 py-0.5 rounded font-bold"
+                          style={{ background: "rgba(247,127,0,0.15)", color: "#F77F00", border: "1px solid rgba(247,127,0,0.3)" }}>
+                          PREMIUM
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                      {!isPremium ? "Upgrade to unlock co-op quiz" : "Train together with another pilot in real-time"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  disabled={collabLoading}
+                  onClick={() => {
+                    if (!isPremium) { window.location.href = "/dashboard/subscription"; return; }
+                    if (collabEnabled) { setCollabEnabled(false); } else { enableCollab(); }
+                  }}
+                  className="relative w-11 h-6 rounded-full transition-all shrink-0 disabled:opacity-50"
+                  style={{ background: !isPremium ? "#30363D" : collabEnabled ? "#00B4D8" : "#30363D" }}>
+                  <span className="absolute top-0.5 transition-all rounded-full w-5 h-5"
+                    style={{
+                      left: (!isPremium || !collabEnabled) ? 2 : "calc(100% - 22px)",
+                      background: "#fff",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                    }} />
+                </button>
+              </div>
+
+              {/* Slide-out: room code section */}
+              <div style={{
+                maxHeight: collabEnabled ? 160 : 0,
+                opacity: collabEnabled ? 1 : 0,
+                overflow: "hidden",
+                transition: "max-height 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease",
+                pointerEvents: collabEnabled ? "auto" : "none",
+              }}>
+                <div className="mt-4 pt-4" style={{ borderTop: "1px solid var(--border)" }}>
+                  {/* Host code */}
+                  <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>
+                    Share this code with your partner:
+                  </p>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="flex-1 flex items-center justify-center px-4 py-2.5 rounded-xl font-mono text-xl font-bold tracking-widest"
+                      style={{ background: "rgba(0,180,216,0.08)", border: "1px solid #00B4D830", color: "#00B4D8" }}>
+                      {collabCode ?? "…"}
+                    </div>
+                    <button
+                      onClick={() => { if (collabCode) { navigator.clipboard.writeText(collabCode); setCollabCopied(true); setTimeout(() => setCollabCopied(false), 1800); } }}
+                      className="px-3 py-2.5 rounded-xl text-xs font-semibold transition-all hover:opacity-80"
+                      style={{ background: collabCopied ? "rgba(46,204,113,0.15)" : "rgba(255,255,255,0.05)", color: collabCopied ? "#2ECC71" : "var(--text-secondary)", border: `1px solid ${collabCopied ? "rgba(46,204,113,0.3)" : "var(--border)"}` }}>
+                      {collabCopied ? "Copied!" : "Copy"}
+                    </button>
+                  </div>
+                  {/* Guest join */}
+                  <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs shrink-0" style={{ color: "var(--text-secondary)" }}>Or join:</p>
+                    <input
+                      value={collabJoinInput}
+                      onChange={e => { setCollabJoinInput(e.target.value.toUpperCase()); setCollabJoinError(null); }}
+                      onKeyDown={e => { if (e.key === "Enter" && collabJoinInput.length === 6) joinCollabQuiz(); }}
+                      placeholder="ABC123"
+                      maxLength={6}
+                      className="flex-1 px-3 py-1.5 rounded-lg text-sm font-mono uppercase tracking-widest outline-none"
+                      style={{ background: "#0D1117", border: `1px solid ${collabJoinError ? "#E6394660" : "var(--border)"}`, color: "var(--text-primary)" }}
+                    />
+                    <button
+                      onClick={joinCollabQuiz}
+                      disabled={collabJoinInput.length !== 6 || collabJoinLoading}
+                      className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80 disabled:opacity-30"
+                      style={{ background: "rgba(0,180,216,0.12)", color: "#00B4D8", border: "1px solid #00B4D830" }}>
+                      {collabJoinLoading ? "…" : "Join →"}
+                    </button>
+                  </div>
+                  {collabJoinError && (
+                    <p className="text-xs px-1" style={{ color: "#E63946" }}>{collabJoinError}</p>
+                  )}
+                  </div>
+                </div>
+              </div>
+            </section>
 
             {/* 1. Aircraft — always visible */}
             <section className="rounded-xl p-6" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
@@ -1116,6 +1289,47 @@ export default function QuizzesPage() {
 
             </>)}
 
+            {/* Voice */}
+            <section className="rounded-xl p-5" style={{
+              background: "var(--bg-card)",
+              border: `1px solid ${!isPremium ? "rgba(247,127,0,0.3)" : "var(--border)"}`,
+              opacity: !isPremium ? 0.8 : 1,
+            }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg">{!isPremium ? "🔒" : "🔊"}</span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold">Voice readout</p>
+                      {!isPremium && (
+                        <span className="text-xs px-1.5 py-0.5 rounded font-bold"
+                          style={{ background: "rgba(247,127,0,0.15)", color: "#F77F00", border: "1px solid rgba(247,127,0,0.3)" }}>
+                          PREMIUM
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                      {!isPremium ? "Upgrade to unlock voice readout" : "Reads label and action aloud on correct click"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    if (!isPremium) { window.location.href = "/dashboard/subscription"; return; }
+                    setConfig(c => ({ ...c, voiceEnabled: !c.voiceEnabled }));
+                  }}
+                  className="relative w-11 h-6 rounded-full transition-all shrink-0"
+                  style={{ background: !isPremium ? "#30363D" : config.voiceEnabled ? "#00B4D8" : "#30363D" }}>
+                  <span className="absolute top-0.5 transition-all rounded-full w-5 h-5"
+                    style={{
+                      left: (!isPremium || !config.voiceEnabled) ? 2 : "calc(100% - 22px)",
+                      background: "#fff",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                    }} />
+                </button>
+              </div>
+            </section>
+
             {/* Start */}
             <div className="flex items-center justify-between pt-2 pb-6">
               <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -1125,10 +1339,10 @@ export default function QuizzesPage() {
                     ? `${activeFlows.length} flow${activeFlows.length !== 1 ? "s" : ""} · 3 min · 2s per step`
                     : `${activeFlows.length} flow${activeFlows.length !== 1 ? "s" : ""} · ${activeFlows.reduce((s, f) => s + f.steps.length, 0)} steps total`}
               </p>
-              <button onClick={startQuiz} disabled={activeFlows.length === 0}
+              <button onClick={startQuiz} disabled={activeFlows.length === 0 && !collabEnabled}
                 className="px-6 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed"
-                style={{ background: config.mode === "exam" ? "#E63946" : "#00B4D8", color: "#0D1117" }}>
-                {config.mode === "exam" ? "Start Exam →" : "Start Practice →"}
+                style={{ background: collabEnabled ? "#00B4D8" : config.mode === "exam" ? "#E63946" : "#00B4D8", color: "#0D1117" }}>
+                {collabEnabled ? "Start Co-op →" : config.mode === "exam" ? "Start Exam →" : "Start Practice →"}
               </button>
             </div>
 

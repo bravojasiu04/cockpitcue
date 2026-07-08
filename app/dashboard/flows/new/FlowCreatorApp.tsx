@@ -1,9 +1,11 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { getAircrafts, saveAircraft, saveFlow, type Aircraft, type FlowAnnotation, type FlowStep, type SavedFlow } from "@/app/lib/storage";
 import FlowPlayer from "@/app/dashboard/flows/FlowPlayer";
 import AnnotationsLayer from "@/app/dashboard/flows/AnnotationsLayer";
+import { getPusherClient } from "@/app/lib/pusher-client";
 
 /* ─── Image bounds helper (accounts for object-contain letterboxing) ─── */
 function getImgBounds(containerW: number, containerH: number, naturalAspect: number) {
@@ -305,7 +307,14 @@ function AircraftPickerPhase({
 }
 
 /* ─── CreatorPhase ─── */
-function CreatorPhase({ imageDataUrl, initialName, initialAircraftId }: { imageDataUrl: string; initialName: string; initialAircraftId?: string }) {
+function CreatorPhase({ imageDataUrl, initialName, initialAircraftId, initialCollabRoom, collabRole, initialCockpitType }: {
+  imageDataUrl: string;
+  initialName: string;
+  initialAircraftId?: string;
+  initialCollabRoom?: string;
+  collabRole?: "host" | "guest";
+  initialCockpitType?: "single" | "multi";
+}) {
   const [flowName, setFlowName] = useState(initialName);
   const [steps, setSteps] = useState<FlowStep[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -333,6 +342,80 @@ function CreatorPhase({ imageDataUrl, initialName, initialAircraftId }: { imageD
   const didDragRef = useRef(false);
   const draggingItemRef = useRef<string | null>(null);
 
+  /* ─── Collab state ─── */
+  const [collabRoom, setCollabRoom] = useState<string | null>(initialCollabRoom ?? null);
+  const [showCollabPopover, setShowCollabPopover] = useState(false);
+  const [collabCopied, setCollabCopied] = useState(false);
+  const [hostDisconnected, setHostDisconnected] = useState(false);
+  const broadcastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSelfUpdate = useRef(false);
+
+  /* Subscribe to Pusher collab channel */
+  useEffect(() => {
+    if (!collabRoom) return;
+    const pusher = getPusherClient();
+    const channel = pusher.subscribe(`presence-collab-${collabRoom}`);
+    channel.bind("pusher:member_removed", () => {
+      if (collabRole === "guest") setHostDisconnected(true);
+    });
+    channel.bind("collab:flow-update", (data: {
+      senderId: string;
+      steps: FlowStep[];
+      annotations: FlowAnnotation[];
+      sequenceOrder: string[];
+      flowName: string;
+    }) => {
+      isSelfUpdate.current = true;
+      setSteps(data.steps);
+      setAnnotations(data.annotations);
+      setSequenceOrder(data.sequenceOrder);
+      setFlowName(data.flowName);
+      setTimeout(() => { isSelfUpdate.current = false; }, 0);
+    });
+    return () => {
+      channel.unbind_all();
+      pusher.unsubscribe(`presence-collab-${collabRoom}`);
+    };
+  }, [collabRoom]);
+
+  /* Broadcast flow state when anything changes (debounced 400ms) */
+  const broadcastState = useCallback((
+    nextSteps: FlowStep[],
+    nextAnnotations: FlowAnnotation[],
+    nextOrder: string[],
+    name: string,
+  ) => {
+    if (!collabRoom || isSelfUpdate.current) return;
+    if (broadcastTimerRef.current) clearTimeout(broadcastTimerRef.current);
+    broadcastTimerRef.current = setTimeout(() => {
+      fetch("/api/collab/event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomCode: collabRoom,
+          eventName: "collab:flow-update",
+          data: { steps: nextSteps, annotations: nextAnnotations, sequenceOrder: nextOrder, flowName: name },
+        }),
+      });
+    }, 400);
+  }, [collabRoom]);
+
+  async function startCollab() {
+    // Upload current image + flow state then create room
+    const res = await fetch("/api/collab/room", { method: "POST" });
+    const { roomCode } = await res.json();
+    await fetch("/api/collab/flow", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        roomCode,
+        flow: { steps, annotations, sequenceOrder, imageDataUrl, flowName, aircraftId: selectedAircraftId, cockpitType: selectedAircraft?.cockpitType ?? "single" },
+      }),
+    });
+    setCollabRoom(roomCode);
+    setShowCollabPopover(true);
+  }
+
   useEffect(() => {
     const list = getAircrafts();
     setAircrafts(list);
@@ -346,7 +429,7 @@ function CreatorPhase({ imageDataUrl, initialName, initialAircraftId }: { imageD
   });
 
   const selectedAircraft = aircrafts.find(a => a.id === selectedAircraftId);
-  const isMultiPilot = selectedAircraft?.cockpitType === "multi";
+  const isMultiPilot = (selectedAircraft?.cockpitType ?? initialCockpitType ?? "single") === "multi";
 
   function pushHistory(snapshot: FlowStep[]) {
     setHistory(prev => [...prev, snapshot]);
@@ -358,6 +441,7 @@ function CreatorPhase({ imageDataUrl, initialName, initialAircraftId }: { imageD
       const next = [...prev];
       const snapshot = next.pop()!;
       setSteps(snapshot);
+      broadcastState(snapshot, annotations, sequenceOrder, flowName);
       return next;
     });
   }
@@ -383,9 +467,13 @@ function CreatorPhase({ imageDataUrl, initialName, initialAircraftId }: { imageD
     const { x, y } = getCanvasPct(e);
     const id = crypto.randomUUID();
     pushHistory(steps);
-    setSteps(prev => [...prev, { id, x, y, label: `Step ${prev.length + 1}`, action: "", role: isMultiPilot ? "PF" : undefined }]);
-    setSequenceOrder(prev => [...prev, id]);
+    const newStep: FlowStep = { id, x, y, label: `Step ${steps.length + 1}`, action: "", role: isMultiPilot ? "PF" : undefined };
+    const nextSteps = [...steps, newStep];
+    const nextOrder = [...sequenceOrder, id];
+    setSteps(nextSteps);
+    setSequenceOrder(nextOrder);
     setSelected(id);
+    broadcastState(nextSteps, annotations, nextOrder, flowName);
   }
 
   function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
@@ -411,16 +499,21 @@ function CreatorPhase({ imageDataUrl, initialName, initialAircraftId }: { imageD
   }
 
   function handleMouseUp() {
+    const wasDragging = draggingRef.current;
     draggingRef.current = null;
+    if (wasDragging) {
+      broadcastState(steps, annotations, sequenceOrder, flowName);
+    }
     if (tool === "draw" && isDrawingRef.current) {
       isDrawingRef.current = false;
       if (currentDrawRef.current.length > 1) {
         const annId = crypto.randomUUID();
-        setAnnotations(prev => [...prev, {
-          type: "draw", id: annId,
-          points: currentDrawRef.current, color: activeColor, width: activeWidth,
-        }]);
-        setSequenceOrder(prev => [...prev, annId]);
+        const newAnn: FlowAnnotation = { type: "draw", id: annId, points: currentDrawRef.current, color: activeColor, width: activeWidth };
+        const nextAnnotations = [...annotations, newAnn];
+        const nextOrder = [...sequenceOrder, annId];
+        setAnnotations(nextAnnotations);
+        setSequenceOrder(nextOrder);
+        broadcastState(steps, nextAnnotations, nextOrder, flowName);
       }
       currentDrawRef.current = [];
       setLiveDrawPoints([]);
@@ -435,27 +528,37 @@ function CreatorPhase({ imageDataUrl, initialName, initialAircraftId }: { imageD
     }
     if (lastAnnId) {
       const id = lastAnnId;
-      setAnnotations(prev => prev.filter(a => a.id !== id));
-      setSequenceOrder(prev => prev.filter(sid => sid !== id));
+      const nextAnnotations = annotations.filter(a => a.id !== id);
+      const nextOrder = sequenceOrder.filter(sid => sid !== id);
+      setAnnotations(nextAnnotations);
+      setSequenceOrder(nextOrder);
+      broadcastState(steps, nextAnnotations, nextOrder, flowName);
     }
   }
 
   function handleClearAnnotations() {
     const annIds = new Set(annotations.map(a => a.id));
+    const nextOrder = sequenceOrder.filter(id => !annIds.has(id));
     setAnnotations([]);
-    setSequenceOrder(prev => prev.filter(id => !annIds.has(id)));
+    setSequenceOrder(nextOrder);
+    broadcastState(steps, [], nextOrder, flowName);
   }
 
   function updateStep(id: string, field: keyof FlowStep, value: string | boolean) {
     pushHistory(steps);
-    setSteps(prev => prev.map(s => s.id === id ? { ...s, [field]: value } : s));
+    const nextSteps = steps.map(s => s.id === id ? { ...s, [field]: value } : s);
+    setSteps(nextSteps);
+    broadcastState(nextSteps, annotations, sequenceOrder, flowName);
   }
 
   function deleteStep(id: string) {
     pushHistory(steps);
-    setSteps(prev => prev.filter(s => s.id !== id));
-    setSequenceOrder(prev => prev.filter(sid => sid !== id));
+    const nextSteps = steps.filter(s => s.id !== id);
+    const nextOrder = sequenceOrder.filter(sid => sid !== id);
+    setSteps(nextSteps);
+    setSequenceOrder(nextOrder);
     if (selected === id) setSelected(null);
+    broadcastState(nextSteps, annotations, nextOrder, flowName);
   }
 
   function reorderSequence(dragId: string, overId: string) {
@@ -508,6 +611,24 @@ function CreatorPhase({ imageDataUrl, initialName, initialAircraftId }: { imageD
 
   return (
     <>
+      {hostDisconnected && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.75)" }}>
+          <div className="px-10 py-8 rounded-2xl text-center max-w-sm"
+            style={{ background: "#161B22", border: "1px solid rgba(230,57,70,0.4)" }}>
+            <p className="text-3xl mb-3">⚠️</p>
+            <p className="text-lg font-bold mb-2">Host disconnected</p>
+            <p className="text-sm mb-6" style={{ color: "var(--text-secondary)" }}>
+              The co-edit session has ended. Your changes were not saved.
+            </p>
+            <a href="/dashboard/flows"
+              className="inline-block px-6 py-2.5 rounded-xl text-sm font-semibold"
+              style={{ background: "#00B4D8", color: "#0D1117" }}>
+              Back to My Flows
+            </a>
+          </div>
+        </div>
+      )}
       {showModal && (
         <SaveModal
           flowName={flowName}
@@ -702,17 +823,66 @@ function CreatorPhase({ imageDataUrl, initialName, initialAircraftId }: { imageD
               </svg>
               Undo
             </button>
+
+            {/* Collaborate button + popover */}
+            <div className="relative">
+              <button
+                onClick={() => collabRoom ? setShowCollabPopover(v => !v) : startCollab()}
+                title="Collaborate — co-edit this flow with another user"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
+                style={{
+                  background: collabRoom ? "rgba(0,180,216,0.12)" : "transparent",
+                  color: collabRoom ? "#00B4D8" : "var(--text-secondary)",
+                  border: collabRoom ? "1px solid #00B4D830" : "1px solid transparent",
+                }}>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <circle cx="5" cy="4" r="2.2" stroke="currentColor" strokeWidth="1.4"/>
+                  <circle cx="10" cy="4" r="2.2" stroke="currentColor" strokeWidth="1.4"/>
+                  <path d="M1 11.5c0-2 1.8-3.5 4-3.5s4 1.5 4 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                  <path d="M10 8c1.2.3 2.5 1.4 2.5 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                </svg>
+                {collabRoom ? "Collab: ON" : "Collaborate"}
+              </button>
+
+              {showCollabPopover && collabRoom && (
+                <div className="absolute top-9 left-0 z-30 rounded-xl p-4 w-64"
+                  style={{ background: "#0D1117", border: "1px solid var(--border)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+                  <p className="text-xs font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Room code</p>
+                  <p className="text-xs mb-3" style={{ color: "var(--text-secondary)" }}>
+                    Partner opens: <span className="font-mono" style={{ color: "#00B4D8" }}>/dashboard/flows/new?collab={collabRoom}</span>
+                  </p>
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="flex-1 flex items-center justify-center py-2 rounded-lg font-mono text-lg font-bold tracking-widest"
+                      style={{ background: "rgba(0,180,216,0.08)", border: "1px solid #00B4D820", color: "#00B4D8" }}>
+                      {collabRoom}
+                    </div>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(collabRoom!);
+                        setCollabCopied(true);
+                        setTimeout(() => setCollabCopied(false), 1800);
+                      }}
+                      className="px-2 py-2 rounded-lg text-xs font-semibold transition-all"
+                      style={{ background: collabCopied ? "rgba(46,204,113,0.15)" : "rgba(255,255,255,0.05)", color: collabCopied ? "#2ECC71" : "var(--text-secondary)", border: "1px solid var(--border)" }}>
+                      {collabCopied ? "✓" : "Copy"}
+                    </button>
+                  </div>
+                  <button onClick={() => setShowCollabPopover(false)} className="text-xs w-full text-center" style={{ color: "var(--text-secondary)" }}>Close</button>
+                </div>
+              )}
+            </div>
+
             <span className="ml-1 text-xs" style={{ color: "var(--text-secondary)" }}>
               {tool === "add" ? "Click on the image to place a step marker" : tool === "move" ? "Drag a marker to reposition it" : tool === "text" ? "Click on the image to add text" : "Click and drag to draw"}
             </span>
           </div>
 
           {/* Image */}
-          <div ref={imgRef} onClick={handleImageClick}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+          <div ref={imgRef} onClick={hostDisconnected ? undefined : handleImageClick}
+            onMouseDown={hostDisconnected ? undefined : handleMouseDown}
+            onMouseMove={hostDisconnected ? undefined : handleMouseMove}
+            onMouseUp={hostDisconnected ? undefined : handleMouseUp}
+            onMouseLeave={hostDisconnected ? undefined : handleMouseUp}
             className="relative flex-1 overflow-hidden"
             style={{
               cursor: tool === "move" ? (draggingRef.current ? "grabbing" : "grab") : tool === "draw" ? "crosshair" : tool === "text" ? "text" : "crosshair",
@@ -771,8 +941,12 @@ function CreatorPhase({ imageDataUrl, initialName, initialAircraftId }: { imageD
               onPendingTextCommit={text => {
                 if (pendingText) {
                   const annId = crypto.randomUUID();
-                  setAnnotations(prev => [...prev, { type: "text", id: annId, x: pendingText.x, y: pendingText.y, text, color: activeColor }]);
-                  setSequenceOrder(prev => [...prev, annId]);
+                  const newAnn: FlowAnnotation = { type: "text", id: annId, x: pendingText.x, y: pendingText.y, text, color: activeColor };
+                  const nextAnnotations = [...annotations, newAnn];
+                  const nextOrder = [...sequenceOrder, annId];
+                  setAnnotations(nextAnnotations);
+                  setSequenceOrder(nextOrder);
+                  broadcastState(steps, nextAnnotations, nextOrder, flowName);
                 }
                 setPendingText(null);
               }}
@@ -1014,7 +1188,7 @@ function CreatorPhase({ imageDataUrl, initialName, initialAircraftId }: { imageD
                         )}
                       </div>
                       <button
-                        onClick={e => { e.stopPropagation(); const id = itemId; setAnnotations(prev => prev.filter(a => a.id !== id)); setSequenceOrder(prev => prev.filter(sid => sid !== id)); }}
+                        onClick={e => { e.stopPropagation(); const id = itemId; const na = annotations.filter(a => a.id !== id); const no = sequenceOrder.filter(s => s !== id); setAnnotations(na); setSequenceOrder(no); broadcastState(steps, na, no, flowName); }}
                         className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                         style={{ color: "#E63946" }}>
                         <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
@@ -1035,13 +1209,51 @@ function CreatorPhase({ imageDataUrl, initialName, initialAircraftId }: { imageD
 
 /* ─── Main ─── */
 export default function FlowCreatorApp() {
-  const [phase, setPhase] = useState<"pick" | "upload" | "create">("pick");
+  const searchParams = useSearchParams();
+  const collabParam = searchParams.get("collab");
+
+  const [phase, setPhase] = useState<"pick" | "upload" | "create" | "collab-loading">(
+    collabParam ? "collab-loading" : "pick"
+  );
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [imageName, setImageName] = useState("");
   const [aircraftId, setAircraftId] = useState<string>("");
+  const [collabFlowData, setCollabFlowData] = useState<{ steps: FlowStep[]; annotations: FlowAnnotation[]; sequenceOrder: string[]; imageDataUrl: string; flowName: string; aircraftId: string; cockpitType?: "single" | "multi" } | null>(null);
 
-  if (phase === "create" && imageDataUrl) {
-    return <CreatorPhase imageDataUrl={imageDataUrl} initialName={imageName} initialAircraftId={aircraftId} />;
+  useEffect(() => {
+    if (!collabParam) return;
+    fetch(`/api/collab/flow?code=${collabParam}`)
+      .then(r => r.json())
+      .then(({ flow }) => {
+        if (flow) {
+          setCollabFlowData(flow);
+          setPhase("create");
+        }
+      });
+  }, [collabParam]);
+
+  if (phase === "collab-loading") {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <p className="text-sm animate-pulse" style={{ color: "var(--text-secondary)" }}>Joining collab session…</p>
+      </div>
+    );
+  }
+
+  if (phase === "create" && (imageDataUrl || collabFlowData)) {
+    const img = collabFlowData?.imageDataUrl ?? imageDataUrl!;
+    const name = collabFlowData?.flowName ?? imageName;
+    const acId = collabFlowData?.aircraftId ?? aircraftId;
+    return (
+      <CreatorPhase
+        imageDataUrl={img}
+        initialName={name}
+        initialAircraftId={acId}
+        initialCollabRoom={collabParam ?? undefined}
+        collabRole={collabParam ? "guest" : undefined}
+        initialCockpitType={collabFlowData?.cockpitType}
+      />
+    );
   }
 
   if (phase === "upload") {
