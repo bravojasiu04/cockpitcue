@@ -69,6 +69,11 @@ export default function SubscriptionPage() {
             colorDanger: "#E63946",
             fontFamily: "inherit",
           },
+          rules: {
+            ".Label": { color: "#E6EDF3" },
+            ".Input": { color: "#E6EDF3", backgroundColor: "#0D1117", borderColor: "#30363D" },
+            ".Input::placeholder": { color: "#484F58" },
+          },
         },
       },
     });
