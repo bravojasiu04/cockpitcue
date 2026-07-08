@@ -34,8 +34,11 @@ export default function CoopQuizPage() {
   const { roomCode } = useParams<{ roomCode: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { isPremium } = usePlan();
+  const { isPremium, isLoading: planLoading } = usePlan();
   const { user } = useUser();
+  // Guests can join a collab quiz without premium — the host already paid.
+  const isGuest = searchParams.get("role") === "guest";
+  const hasAccess = isGuest || isPremium;
 
   const [phase, setPhase] = useState<"loading" | "lobby" | "role-select" | "running" | "done">("loading");
   const [myRole, setMyRole] = useState<Role | null>(null);
@@ -101,7 +104,10 @@ export default function CoopQuizPage() {
     // `user` reference and can briefly flip isPremium to false) never re-runs
     // initialization and resets the quiz phase back to "lobby".
     if (initializedRef.current) return;
-    if (!isPremium || !user) return;
+    // Guests can join without premium; wait for plan check only for hosts.
+    if (!user) return;
+    if (!isGuest && !isPremium) return;
+    if (!isGuest && planLoading) return;
     initializedRef.current = true;
 
     const role = searchParams.get("role");
@@ -232,7 +238,7 @@ export default function CoopQuizPage() {
       pusher.unsubscribe(`presence-collab-${roomCode}`);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomCode, isPremium, user]);
+  }, [roomCode, isPremium, planLoading, isGuest, user]);
 
   // Periodically re-announce readiness while in lobby so that whichever user
   // joins second is guaranteed to receive the event (avoids lost-message races).
@@ -432,11 +438,12 @@ export default function CoopQuizPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteSteps]);
 
-  if (!isPremium) {
+  if (!hasAccess && !planLoading) {
     return (
       <div className="flex-1 flex items-center justify-center p-8 text-center">
         <div>
           <p className="text-lg font-bold mb-2">Premium required</p>
+          <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>Upgrade to host collaborative sessions.</p>
           <a href="/dashboard/subscription" style={{ color: "#00B4D8" }}>Upgrade →</a>
         </div>
       </div>
