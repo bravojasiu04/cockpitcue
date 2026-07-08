@@ -645,6 +645,38 @@ export default function Home() {
         </div>
       </section>
 
+      {/* OUR MISSION */}
+      <section className="py-24 px-6" style={{ background: "var(--bg-secondary)", borderTop: "1px solid var(--border)" }}>
+        <div className="max-w-3xl mx-auto">
+          <p className="text-xs font-mono mb-3 text-center uppercase tracking-widest" style={{ color: "#00B4D8" }}>Our Mission</p>
+          <h2 className="text-3xl font-bold text-center mb-16">Built for pilots, by people who care about safety</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="p-6 rounded-2xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+              <div className="text-2xl mb-4">✈️</div>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                Every checklist skipped, every memory item forgotten under pressure — these aren&apos;t just procedural failures.
+                They&apos;re moments where training didn&apos;t stick when it mattered most.
+              </p>
+            </div>
+            <div className="p-6 rounded-2xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+              <div className="text-2xl mb-4">🎯</div>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                CockpitCue exists to close that gap. We believe great pilots aren&apos;t born with perfect memory —
+                they&apos;re built through deliberate, structured practice that mirrors the real cockpit environment.
+              </p>
+            </div>
+            <div className="p-6 rounded-2xl" style={{ background: "var(--bg-card)", border: "1px solid var(--border)" }}>
+              <div className="text-2xl mb-4">🛡️</div>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                Our mission: make high-quality flow training accessible to every pilot — from the student logging first solo hours
+                to the captain transitioning to a new type. Because in aviation, the difference between a good flight and a bad one
+                often comes down to what you practiced when nobody was watching.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* FINAL CTA — only for signed-out users */}
       <Show when="signed-out">
         <section className="py-24 px-6 relative overflow-hidden"
