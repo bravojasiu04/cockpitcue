@@ -825,52 +825,24 @@ function CreatorPhase({ imageDataUrl, initialName, initialAircraftId, initialCol
               Undo
             </button>
 
-            {/* Collaborate button + popover */}
-            <div className="relative">
+            {/* Collaborate button — Coming Soon */}
+            <div className="relative group">
               <button
-                onClick={() => collabRoom ? setShowCollabPopover(v => !v) : startCollab()}
-                title="Collaborate — co-edit this flow with another user"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                style={{
-                  background: collabRoom ? "rgba(0,180,216,0.12)" : "transparent",
-                  color: collabRoom ? "#00B4D8" : "var(--text-secondary)",
-                  border: collabRoom ? "1px solid #00B4D830" : "1px solid transparent",
-                }}>
+                disabled
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-not-allowed select-none"
+                style={{ background: "transparent", color: "var(--text-secondary)", border: "1px solid transparent", opacity: 0.45 }}>
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                   <circle cx="5" cy="4" r="2.2" stroke="currentColor" strokeWidth="1.4"/>
                   <circle cx="10" cy="4" r="2.2" stroke="currentColor" strokeWidth="1.4"/>
                   <path d="M1 11.5c0-2 1.8-3.5 4-3.5s4 1.5 4 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                   <path d="M10 8c1.2.3 2.5 1.4 2.5 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
                 </svg>
-                {collabRoom ? "Collab: ON" : "Collaborate"}
+                Collaborate
               </button>
-
-              {showCollabPopover && collabRoom && (
-                <div className="absolute top-9 left-0 z-30 rounded-xl p-4 w-64"
-                  style={{ background: "#0D1117", border: "1px solid var(--border)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
-                  <p className="text-xs font-semibold mb-1" style={{ color: "var(--text-primary)" }}>Room code</p>
-                  <p className="text-xs mb-3" style={{ color: "var(--text-secondary)" }}>
-                    Partner opens: <span className="font-mono" style={{ color: "#00B4D8" }}>/dashboard/flows/new?collab={collabRoom}</span>
-                  </p>
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="flex-1 flex items-center justify-center py-2 rounded-lg font-mono text-lg font-bold tracking-widest"
-                      style={{ background: "rgba(0,180,216,0.08)", border: "1px solid #00B4D820", color: "#00B4D8" }}>
-                      {collabRoom}
-                    </div>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(collabRoom!);
-                        setCollabCopied(true);
-                        setTimeout(() => setCollabCopied(false), 1800);
-                      }}
-                      className="px-2 py-2 rounded-lg text-xs font-semibold transition-all"
-                      style={{ background: collabCopied ? "rgba(46,204,113,0.15)" : "rgba(255,255,255,0.05)", color: collabCopied ? "#2ECC71" : "var(--text-secondary)", border: "1px solid var(--border)" }}>
-                      {collabCopied ? "✓" : "Copy"}
-                    </button>
-                  </div>
-                  <button onClick={() => setShowCollabPopover(false)} className="text-xs w-full text-center" style={{ color: "var(--text-secondary)" }}>Close</button>
-                </div>
-              )}
+              <div className="absolute top-9 left-0 z-30 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ background: "#1C2333", border: "1px solid var(--border)", color: "var(--text-primary)", boxShadow: "0 4px 12px rgba(0,0,0,0.4)" }}>
+                Coming Soon
+              </div>
             </div>
 
             <span className="ml-1 text-xs" style={{ color: "var(--text-secondary)" }}>
